@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, OFFICIAL_GROUNDED_SOURCES, SYSTEM_SAFETY_PROMPT } from "../_shared/sources.ts";
+import { corsHeaders, authenticateRequest, SYSTEM_SAFETY_PROMPT } from "../_shared/sources.ts";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -7,6 +7,20 @@ serve(async (req) => {
   }
 
   try {
+    // 1. Enforce authenticated request
+    let user;
+    let supabaseClient;
+    try {
+      const auth = await authenticateRequest(req);
+      user = auth.user;
+      supabaseClient = auth.supabaseClient;
+    } catch (authErr: any) {
+      return new Response(JSON.stringify({ error: authErr.message || 'Unauthorized access' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { message, history = [], caseContext = null, language = 'en' } = await req.json();
 
     if (!message || typeof message !== 'string') {
@@ -24,28 +38,30 @@ serve(async (req) => {
       });
     }
 
-    // Identify grounded context matches
-    const lower = message.toLowerCase();
-    const relevantSources = OFFICIAL_GROUNDED_SOURCES.filter(s => {
-      if (lower.includes('police') || lower.includes('fir') || lower.includes('station') || lower.includes('call')) {
-        return s.category === 'police_criminal';
+    // 2. Query public.sources from Database for statutory grounding
+    let relevantSources: any[] = [];
+    try {
+      const { data: dbSources } = await supabaseClient
+        .from('sources')
+        .select('id, title, authority, jurisdiction, category, url, excerpt, verification_status')
+        .eq('active', true)
+        .eq('verification_status', 'verified');
+
+      if (dbSources && dbSources.length > 0) {
+        relevantSources = dbSources;
       }
-      if (lower.includes('photo') || lower.includes('blackmail') || lower.includes('leak') || lower.includes('hacked') || lower.includes('threat')) {
-        return s.category === 'cybercrime';
-      }
-      if (lower.includes('women') || lower.includes('harass') || lower.includes('abuse') || lower.includes('rights')) {
-        return s.category === 'human_rights' || s.category === 'cybercrime';
-      }
-      return true;
-    });
+    } catch (dbErr) {
+      console.warn('[ai-chat] Error reading sources table:', dbErr);
+    }
 
     const userPrompt = `
+User ID: ${user.id}
 User statement: "${message}"
 Language requested: ${language}
 Active Case Context: ${caseContext ? JSON.stringify(caseContext) : 'None'}
 Prior Conversation: ${JSON.stringify(history)}
 
-Available Verified Legal Sources:
+Available Verified Legal Sources from Database Registry:
 ${JSON.stringify(relevantSources, null, 2)}
 
 Provide your response in strictly valid JSON format matching this schema:
@@ -133,8 +149,8 @@ Provide your response in strictly valid JSON format matching this schema:
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("[ai-chat] Gemini API error:", errText);
-      return new Response(JSON.stringify({ error: "Upstream AI service error", details: errText }), {
+      console.error("[ai-chat] Gemini API upstream error status:", response.status);
+      return new Response(JSON.stringify({ error: "Upstream AI service error" }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -168,9 +184,9 @@ Provide your response in strictly valid JSON format matching this schema:
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } catch (err) {
-    console.error("[ai-chat] Fatal error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Internal server error" }), {
+  } catch (err: any) {
+    console.error("[ai-chat] Server error:", err?.message || 'Unknown');
+    return new Response(JSON.stringify({ error: err?.message || "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

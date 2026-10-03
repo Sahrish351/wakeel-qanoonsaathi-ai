@@ -1,70 +1,39 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-export const OFFICIAL_GROUNDED_SOURCES = [
-  {
-    id: 'SRC-PK-POLICE-15',
-    title: 'Emergency Police Services (Punjab / National)',
-    authority: 'Punjab Police / National Police Bureau',
-    jurisdiction: 'Pakistan',
-    category: 'police_criminal',
-    url: 'https://punjabpolice.gov.pk',
-    contact: '15',
-    excerpt: 'Emergency police response. Section 160 CrPC governs witness attendance upon written order; verbal demands over phone require identity and formal verification before compliance.'
-  },
-  {
-    id: 'SRC-PK-RESCUE-1122',
-    title: 'Emergency Ambulance & Rescue Services',
-    authority: 'Punjab Emergency Service (Rescue 1122)',
-    jurisdiction: 'Punjab / Khyber Pakhtunkhwa / National',
-    category: 'police_criminal',
-    url: 'https://rescue.gov.pk',
-    contact: '1122',
-    excerpt: 'Immediate medical trauma, fire, and distress dispatch.'
-  },
-  {
-    id: 'SRC-PK-MOHR-1099',
-    title: 'Ministry of Human Rights Legal Aid Helpline',
-    authority: 'Ministry of Human Rights, Government of Pakistan',
-    jurisdiction: 'Pakistan',
-    category: 'human_rights',
-    url: 'https://www.mohr.gov.pk',
-    contact: '1099',
-    excerpt: 'Free legal counseling, human rights violation reporting, and safety routing for vulnerable individuals, domestic abuse survivors, and minorities.'
-  },
-  {
-    id: 'SRC-PK-NCCIA-1799',
-    title: 'National Cyber Crime Investigation Agency (NCCIA) Portal',
-    authority: 'NCCIA / FIA Cybercrime Wing',
-    jurisdiction: 'Pakistan',
-    category: 'cybercrime',
-    url: 'https://www.nccia.gov.pk',
-    contact: '1799',
-    excerpt: 'Mandated under Prevention of Electronic Crimes Act (PECA 2016) Sec 20, 21 & 24 for cyber blackmail, extortion with private images, online harassment, and unauthorized data access.'
-  },
-  {
-    id: 'SRC-PK-CRPC-1898',
-    title: 'Code of Criminal Procedure (Act V of 1898)',
-    authority: 'Ministry of Law and Justice, Pakistan',
-    jurisdiction: 'Pakistan',
-    category: 'police_criminal',
-    url: 'http://pakistancode.gov.pk',
-    contact: null,
-    excerpt: 'Statutory regulation governing investigation, FIR registration (Sec 154), police powers to examine witnesses (Sec 160), and arrest safeguards.'
-  },
-  {
-    id: 'SRC-PK-PECA-2016',
-    title: 'Prevention of Electronic Crimes Act 2016',
-    authority: 'National Assembly of Pakistan',
-    jurisdiction: 'Pakistan',
-    category: 'cybercrime',
-    url: 'http://pakistancode.gov.pk',
-    contact: null,
-    excerpt: 'Covers offenses against dignity of natural persons (Sec 20), cyber-stalking (Sec 24), and dissemination of private images/coercion (Sec 21).'
+/**
+ * Validates the caller's JWT token using Supabase Auth.
+ * Returns the verified user object or throws an error.
+ */
+export async function authenticateRequest(req: Request) {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    throw new Error('Missing Authorization header. Token required.');
   }
-];
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase environment variables missing in server runtime.');
+  }
+
+  const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false },
+  });
+
+  const { data: { user }, error } = await supabaseClient.auth.getUser();
+  if (error || !user) {
+    throw new Error(`Unauthorized: ${error?.message || 'Invalid or expired token'}`);
+  }
+
+  return { user, supabaseClient };
+}
 
 export const SYSTEM_SAFETY_PROMPT = `
 You are Wakeel (QanoonSaathi AI), a specialized legal navigation and triage guide for Pakistan.

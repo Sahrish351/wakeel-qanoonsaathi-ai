@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/sources.ts";
+import { corsHeaders, authenticateRequest } from "../_shared/sources.ts";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -7,6 +7,16 @@ serve(async (req) => {
   }
 
   try {
+    // 1. Enforce authenticated request
+    try {
+      await authenticateRequest(req);
+    } catch (authErr: any) {
+      return new Response(JSON.stringify({ error: authErr.message || 'Unauthorized access' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { fileBase64, mimeType, fileName } = await req.json();
 
     if (!fileBase64 || !mimeType) {
@@ -81,9 +91,8 @@ Extract and analyze the document strictly in JSON adhering to this schema:
     });
 
     if (!response.ok) {
-      const errText = await response.text();
-      console.error("[ai-analyze-document] Gemini error:", errText);
-      return new Response(JSON.stringify({ error: "Failed to analyze document with vision model.", details: errText }), {
+      console.error("[ai-analyze-document] Gemini error status:", response.status);
+      return new Response(JSON.stringify({ error: "Failed to analyze document with vision model." }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -97,9 +106,9 @@ Extract and analyze the document strictly in JSON adhering to this schema:
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } catch (err) {
-    console.error("[ai-analyze-document] Error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Internal server error" }), {
+  } catch (err: any) {
+    console.error("[ai-analyze-document] Error:", err?.message || 'Unknown');
+    return new Response(JSON.stringify({ error: err?.message || "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
