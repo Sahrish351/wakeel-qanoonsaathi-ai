@@ -14,10 +14,10 @@ export interface InputProps
   error?: string;
   /** Helper / hint text below the input */
   hint?: string;
-  /** Lucide icon rendered on the left inside the input */
-  leftIcon?: LucideIcon;
-  /** Lucide icon rendered on the right inside the input */
-  rightIcon?: LucideIcon;
+  /** Icon rendered on the left inside the input */
+  leftIcon?: LucideIcon | React.ReactNode;
+  /** Icon rendered on the right inside the input */
+  rightIcon?: LucideIcon | React.ReactNode;
 }
 
 // ---------------------------------------------------------------------------
@@ -73,10 +73,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
         <div className="relative flex items-center">
           {LeftIcon && (
-            <LeftIcon
-              className="absolute left-3 w-4 h-4 text-[#A8A29E] pointer-events-none shrink-0"
-              aria-hidden="true"
-            />
+            <span className="absolute left-3 w-4 h-4 text-[#A8A29E] pointer-events-none shrink-0 flex items-center justify-center">
+              {typeof LeftIcon === 'function' ? (
+                <LeftIcon className="w-4 h-4 text-[#A8A29E]" aria-hidden="true" />
+              ) : (
+                LeftIcon
+              )}
+            </span>
           )}
 
           <input
@@ -109,10 +112,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           />
 
           {RightIcon && (
-            <RightIcon
-              className="absolute right-3 w-4 h-4 text-[#A8A29E] pointer-events-none shrink-0"
-              aria-hidden="true"
-            />
+            <span className="absolute right-3 w-4 h-4 text-[#A8A29E] pointer-events-none shrink-0 flex items-center justify-center">
+              {typeof RightIcon === 'function' ? (
+                <RightIcon className="w-4 h-4 text-[#A8A29E]" aria-hidden="true" />
+              ) : (
+                RightIcon
+              )}
+            </span>
           )}
         </div>
 
