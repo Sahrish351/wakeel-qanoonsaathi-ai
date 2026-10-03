@@ -25,7 +25,9 @@ import { SourceCard } from '@/components/ui/SourceCard';
 import { ConfidenceBadge } from '@/components/ui/ConfidenceBadge';
 import { UrgencyBanner } from '@/components/shared/UrgencyBanner';
 import { sendChatMessage } from '@/lib/api/ai';
+import { getOrCreateActiveConversation, getConversationMessages, persistChatMessage } from '@/lib/api/database';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import type { AgentResponse, UrgencyLevel, WakeelQuestion } from '@/types';
 
 interface ChatMessage {
@@ -38,8 +40,10 @@ interface ChatMessage {
 
 export default function AIPage() {
   const { language } = useLanguage();
+  const { user } = useAuth();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeUrgency, setActiveUrgency] = useState<UrgencyLevel | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -47,6 +51,32 @@ export default function AIPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+
+  // Initialize or load existing database conversation for authenticated user
+  useEffect(() => {
+    let mounted = true;
+    async function initConversation() {
+      if (!user) return;
+      try {
+        const convId = await getOrCreateActiveConversation();
+        if (mounted) setConversationId(convId);
+        const history = await getConversationMessages(convId);
+        if (mounted && history.length > 0) {
+          setMessages(history.map(m => ({
+            id: m.id,
+            sender: m.sender_type === 'user' ? 'user' : 'agent',
+            text: m.content,
+            payload: m.structured_payload || undefined,
+            timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          })));
+        }
+      } catch (err) {
+        console.warn('[AIPage] Session init notice:', err);
+      }
+    }
+    initConversation();
+    return () => { mounted = false; };
+  }, [user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -118,6 +148,22 @@ export default function AIPage() {
     setLoading(true);
 
     try {
+      // Ensure conversation exists in DB
+      let activeConvId = conversationId;
+      if (!activeConvId && user) {
+        activeConvId = await getOrCreateActiveConversation();
+        setConversationId(activeConvId);
+      }
+
+      // Persist user message
+      if (activeConvId) {
+        persistChatMessage({
+          conversationId: activeConvId,
+          senderType: 'user',
+          content: query,
+        }).catch(e => console.warn('[AIPage] User message DB persist notice:', e));
+      }
+
       const historyPayload = messages.map(m => ({
         role: m.sender === 'user' ? 'user' : 'model',
         content: m.text,
@@ -142,6 +188,16 @@ export default function AIPage() {
       };
 
       setMessages(prev => [...prev, agentMsg]);
+
+      // Persist agent response
+      if (activeConvId) {
+        persistChatMessage({
+          conversationId: activeConvId,
+          senderType: 'agent',
+          content: agentData.summary,
+          structuredPayload: agentData,
+        }).catch(e => console.warn('[AIPage] Agent response DB persist notice:', e));
+      }
     } catch (err: any) {
       console.error('Agent chat error:', err);
     } finally {

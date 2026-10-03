@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { analyzeDocumentFile, type DocumentAnalysisResult } from '@/lib/api/ai';
+import { uploadAndAnalyzeDocument } from '@/lib/api/database';
 
 export default function DocumentAnalyzerPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -40,28 +41,37 @@ export default function DocumentAnalyzerPage() {
     setError(null);
 
     try {
-      // Convert to base64
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const base64Data = (reader.result as string).split(',')[1];
-          const analysis = await analyzeDocumentFile({
-            fileBase64: base64Data,
-            mimeType: file.type || 'application/pdf',
-            fileName: file.name,
-          });
-          setResult(analysis);
-        } catch (err: any) {
-          setError(err.message || 'Analysis failed. Please try a clearer scan or PDF.');
-        } finally {
+      // Upload to private 'case-documents' bucket & insert database records
+      try {
+        const { extraction } = await uploadAndAnalyzeDocument({ file });
+        setResult(extraction);
+      } catch (uploadErr) {
+        console.warn('[DocAnalyzer] Storage upload fallback notice:', uploadErr);
+        // Fallback to direct OCR if storage fails
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const base64Data = (reader.result as string).split(',')[1];
+            const analysis = await analyzeDocumentFile({
+              fileBase64: base64Data,
+              mimeType: file.type || 'application/pdf',
+              fileName: file.name,
+            });
+            setResult(analysis);
+          } catch (err: any) {
+            setError(err.message || 'Analysis failed. Please try a clearer scan or PDF.');
+          } finally {
+            setAnalyzing(false);
+          }
+        };
+        reader.onerror = () => {
+          setError('Failed to read document file.');
           setAnalyzing(false);
-        }
-      };
-      reader.onerror = () => {
-        setError('Failed to read document file.');
-        setAnalyzing(false);
-      };
-      reader.readAsDataURL(file);
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+      setAnalyzing(false);
     } catch (err: any) {
       setError(err.message || 'Unexpected upload error.');
       setAnalyzing(false);

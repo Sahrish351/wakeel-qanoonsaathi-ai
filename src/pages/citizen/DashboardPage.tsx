@@ -18,9 +18,37 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { getCitizenDashboardData } from '@/lib/api/database';
+import type { Case, Task } from '@/types';
 
 export default function DashboardPage() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+  const [cases, setCases] = React.useState<Case[]>([]);
+  const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let mounted = true;
+    async function loadDashboard() {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const data = await getCitizenDashboardData();
+        if (mounted) {
+          setCases(data.cases);
+          setTasks(data.tasks);
+        }
+      } catch (err) {
+        console.warn('[DashboardPage] Query notice:', err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    loadDashboard();
+    return () => { mounted = false; };
+  }, [user]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
@@ -97,57 +125,80 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-4">
-            {/* Cyber Blackmail Case Card */}
-            <div className="p-6 bg-white border border-[#E7E5E4] rounded-2xl shadow-sm space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-heading text-lg font-bold text-[#1C1917]">Cyber Blackmail Threat Response</h3>
-                    <Badge variant="danger">High Risk</Badge>
+            {cases.length > 0 ? (
+              cases.map((c) => (
+                <div key={c.id} className="p-6 bg-white border border-[#E7E5E4] rounded-2xl shadow-sm space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-heading text-lg font-bold text-[#1C1917]">{c.title}</h3>
+                        <Badge variant={c.urgency === 'high' ? 'danger' : 'caution'}>{c.urgency.toUpperCase()}</Badge>
+                      </div>
+                      <p className="text-xs text-[#7C3AED] font-semibold mt-0.5">Category: {c.category}</p>
+                    </div>
+                    <Badge variant="outline">{c.status}</Badge>
                   </div>
-                  <p className="text-xs text-[#7C3AED] font-semibold mt-0.5">Category: PECA Cybercrime</p>
-                </div>
-                <Badge variant="outline">In Progress</Badge>
-              </div>
-
-              <p className="text-xs text-[#57534E] leading-relaxed">
-                Extortion threats received via digital messaging. Evidence preserved in vault and NCCIA 1799 complaint pending verification.
-              </p>
-
-              <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[#E7E5E4] text-xs">
-                <span className="text-[#059669] font-medium flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> 2 Evidence items vaulted
-                </span>
-                <Link to="/cases/timeline" className="text-[#7C3AED] font-semibold hover:underline">
-                  View Timeline & Plan
-                </Link>
-              </div>
-            </div>
-
-            {/* Police Summons Card */}
-            <div className="p-6 bg-white border border-[#E7E5E4] rounded-2xl shadow-sm space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-heading text-lg font-bold text-[#1C1917]">Police Station Call Inquiry</h3>
-                    <Badge variant="caution">Moderate Urgency</Badge>
+                  <p className="text-xs text-[#57534E] leading-relaxed">
+                    {c.summary || 'Active legal inquiry under review.'}
+                  </p>
+                  <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[#E7E5E4] text-xs">
+                    <span className="text-[#A8A29E]">Last updated: {new Date(c.updated_at).toLocaleDateString()}</span>
+                    <Link to="/ai" className="text-[#7C3AED] font-semibold hover:underline">
+                      Continue Triage
+                    </Link>
                   </div>
-                  <p className="text-xs text-[#D97706] font-semibold mt-0.5">Category: Criminal Procedure (CrPC)</p>
                 </div>
-                <Badge variant="outline">Pending Detail</Badge>
-              </div>
+              ))
+            ) : (
+              /* Polished initial guidance cards for citizen */
+              <>
+                <div className="p-6 bg-white border border-[#E7E5E4] rounded-2xl shadow-sm space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-heading text-lg font-bold text-[#1C1917]">Cyber Blackmail Threat Response</h3>
+                        <Badge variant="danger">High Risk</Badge>
+                      </div>
+                      <p className="text-xs text-[#7C3AED] font-semibold mt-0.5">Category: PECA Cybercrime</p>
+                    </div>
+                    <Badge variant="outline">Sample Case</Badge>
+                  </div>
+                  <p className="text-xs text-[#57534E] leading-relaxed">
+                    Extortion threats received via digital messaging. Evidence preserved in vault and NCCIA 1799 complaint pending verification.
+                  </p>
+                  <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[#E7E5E4] text-xs">
+                    <span className="text-[#059669] font-medium flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> 2 Evidence items vaulted
+                    </span>
+                    <Link to="/ai" className="text-[#7C3AED] font-semibold hover:underline">
+                      Start New Case Like This
+                    </Link>
+                  </div>
+                </div>
 
-              <p className="text-xs text-[#57534E] leading-relaxed">
-                Caller verification protocol active. Recommended requesting written notice under Section 160 CrPC before in-person attendance.
-              </p>
-
-              <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[#E7E5E4] text-xs">
-                <span className="text-[#A8A29E]">Awaiting written notice confirmation</span>
-                <Link to="/ai" className="text-[#7C3AED] font-semibold hover:underline">
-                  Continue Triage
-                </Link>
-              </div>
-            </div>
+                <div className="p-6 bg-white border border-[#E7E5E4] rounded-2xl shadow-sm space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-heading text-lg font-bold text-[#1C1917]">Police Station Call Inquiry</h3>
+                        <Badge variant="caution">Moderate Urgency</Badge>
+                      </div>
+                      <p className="text-xs text-[#D97706] font-semibold mt-0.5">Category: Criminal Procedure (CrPC)</p>
+                    </div>
+                    <Badge variant="outline">Sample Case</Badge>
+                  </div>
+                  <p className="text-xs text-[#57534E] leading-relaxed">
+                    Caller verification protocol active. Recommended requesting written notice under Section 160 CrPC before in-person attendance.
+                  </p>
+                  <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[#E7E5E4] text-xs">
+                    <span className="text-[#A8A29E]">Awaiting written notice confirmation</span>
+                    <Link to="/ai" className="text-[#7C3AED] font-semibold hover:underline">
+                      Continue Triage
+                    </Link>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

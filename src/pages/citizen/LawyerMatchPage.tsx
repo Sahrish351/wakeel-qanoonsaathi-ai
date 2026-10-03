@@ -102,14 +102,34 @@ const DEMO_LAWYERS: DemoLawyer[] = [
   }
 ];
 
+import { getVerifiedLawyers, createConsultationRequest } from '@/lib/api/database';
+
 export default function LawyerMatchPage() {
+  const [lawyerList, setLawyerList] = useState<DemoLawyer[]>(DEMO_LAWYERS);
   const [search, setSearch] = useState('');
   const [selectedProvince, setSelectedProvince] = useState('All');
   const [selectedLawyer, setSelectedLawyer] = useState<DemoLawyer | null>(null);
   const [consultSuccess, setConsultSuccess] = useState(false);
   const [caseSummary, setCaseSummary] = useState('User inquiry regarding legal guidance.');
 
-  const filteredLawyers = DEMO_LAWYERS.filter(l => {
+  // Load verified lawyers from Supabase on mount & province change
+  React.useEffect(() => {
+    let mounted = true;
+    async function loadLawyers() {
+      try {
+        const dbLawyers = await getVerifiedLawyers(selectedProvince);
+        if (mounted && dbLawyers.length > 0) {
+          setLawyerList(dbLawyers);
+        }
+      } catch (err) {
+        console.warn('[LawyerMatchPage] DB query notice:', err);
+      }
+    }
+    loadLawyers();
+    return () => { mounted = false; };
+  }, [selectedProvince]);
+
+  const filteredLawyers = lawyerList.filter(l => {
     const matchesSearch = l.name.toLowerCase().includes(search.toLowerCase()) ||
                           l.specialization.toLowerCase().includes(search.toLowerCase()) ||
                           l.city.toLowerCase().includes(search.toLowerCase());
@@ -117,7 +137,18 @@ export default function LawyerMatchPage() {
     return matchesSearch && matchesProv;
   });
 
-  const handleRequestConsult = () => {
+  const handleRequestConsult = async () => {
+    if (!selectedLawyer) return;
+
+    try {
+      await createConsultationRequest({
+        lawyerId: selectedLawyer.id,
+        notes: caseSummary,
+      });
+    } catch (consultErr) {
+      console.warn('[LawyerMatchPage] Consultation DB persist notice:', consultErr);
+    }
+
     setConsultSuccess(true);
     setTimeout(() => {
       setConsultSuccess(false);

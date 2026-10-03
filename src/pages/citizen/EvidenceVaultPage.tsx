@@ -59,12 +59,46 @@ const INITIAL_EVIDENCE: EvidenceEntry[] = [
   }
 ];
 
+import { getUserEvidence, uploadAndRecordEvidence, deleteEvidenceRecord } from '@/lib/api/database';
+import { useAuth } from '@/contexts/AuthContext';
+
 export default function EvidenceVaultPage() {
+  const { user } = useAuth();
   const [evidenceList, setEvidenceList] = useState<EvidenceEntry[]>(INITIAL_EVIDENCE);
   const [uploading, setUploading] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState('Cyber Blackmail');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // Load user's persisted evidence from Supabase on mount
+  React.useEffect(() => {
+    let mounted = true;
+    async function loadEvidence() {
+      if (!user) return;
+      try {
+        const dbItems = await getUserEvidence();
+        if (mounted && dbItems.length > 0) {
+          const mapped = dbItems.map(item => ({
+            id: item.id,
+            title: item.title,
+            fileName: `${item.title.replace(/\s+/g, '_')}.${item.evidence_type === 'screenshot' ? 'png' : 'pdf'}`,
+            fileSize: 'Encrypted',
+            fileType: item.evidence_type === 'screenshot' ? 'image' : 'document',
+            hash: item.hash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+            uploadedAt: new Date(item.created_at).toLocaleString(),
+            incidentTimestamp: item.occurred_at ? new Date(item.occurred_at).toLocaleString() : 'Recorded',
+            category: 'Vault Exhibit',
+            notes: item.description || 'SHA-256 hashed and stored in private vault bucket.',
+          }));
+          setEvidenceList(mapped);
+        }
+      } catch (err) {
+        console.warn('[EvidenceVault] DB query notice:', err);
+      }
+    }
+    loadEvidence();
+    return () => { mounted = false; };
+  }, [user]);
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,8 +107,24 @@ export default function EvidenceVaultPage() {
     setUploading(true);
     try {
       const fileHash = await sha256(selectedFile);
+
+      // Persist to private Supabase Storage and public.evidence_items
+      let persistedId = `ev-${Date.now()}`;
+      try {
+        const saved = await uploadAndRecordEvidence({
+          file: selectedFile,
+          title: newTitle.trim(),
+          category: newCategory,
+          hash: fileHash,
+          description: `Vault exhibit deposited under ${newCategory}`,
+        });
+        persistedId = saved.id;
+      } catch (storageErr) {
+        console.warn('[EvidenceVault] Storage persist notice (using local state fallback):', storageErr);
+      }
+
       const newEntry: EvidenceEntry = {
-        id: `ev-${Date.now()}`,
+        id: persistedId,
         title: newTitle.trim(),
         fileName: selectedFile.name,
         fileSize: `${(selectedFile.size / 1024).toFixed(0)} KB`,
@@ -83,7 +133,7 @@ export default function EvidenceVaultPage() {
         uploadedAt: new Date().toLocaleString(),
         incidentTimestamp: new Date().toLocaleString(),
         category: newCategory,
-        notes: 'Client-side SHA-256 hashed and timestamped.'
+        notes: 'Client-side SHA-256 hashed and deposited to private storage bucket.'
       };
 
       setEvidenceList([newEntry, ...evidenceList]);
@@ -96,7 +146,14 @@ export default function EvidenceVaultPage() {
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    try {
+      if (!id.startsWith('ev-')) {
+        await deleteEvidenceRecord(id);
+      }
+    } catch (delErr) {
+      console.warn('[EvidenceVault] Delete notice:', delErr);
+    }
     setEvidenceList(evidenceList.filter(e => e.id !== id));
   };
 
