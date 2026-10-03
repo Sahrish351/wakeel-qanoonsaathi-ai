@@ -332,7 +332,8 @@ export default function CaseDetailPage() {
             title: s.title,
             authority: s.authority,
             url: s.url,
-            excerpt: s.excerpt
+            excerpt: s.excerpt,
+            relevance: s.excerpt || 'Statutory authority and procedural rules'
           }))
         });
 
