@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { NotificationCenter } from '@/components/shared/NotificationCenter';
 import type { AppLanguage, UserRole } from '@/types';
 
 // ─── TYPES ────────────────────────────────────────────────────
@@ -222,6 +223,9 @@ export function Navbar() {
                 </div>
               )}
             </div>
+
+            {/* Notification Center */}
+            {isAuthenticated && <NotificationCenter />}
 
             {/* Auth: Profile menu or Sign In */}
             {isAuthenticated ? (

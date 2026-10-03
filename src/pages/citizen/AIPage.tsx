@@ -428,9 +428,32 @@ export default function AIPage() {
             ))}
 
             {loading && (
-              <div className="flex items-center gap-2.5 text-xs text-[#7C3AED] py-2">
-                <Sparkles className="w-4 h-4 animate-spin" />
-                <span>Wakeel is analyzing facts against verified statutes...</span>
+              <div className="p-4 rounded-xl bg-white border border-[#7C3AED]/20 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-[#7C3AED]">
+                  <Sparkles className="w-4 h-4 animate-spin text-[#7C3AED]" />
+                  <span>Agentic Legal Reasoning Active:</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-[11px]">
+                  <div className="flex items-center gap-1.5 text-[#059669] font-medium">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>1. Safety & Triage</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[#059669] font-medium">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>2. Fact Extraction</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[#7C3AED] font-medium animate-pulse">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>3. Statute Grounding</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[#A8A29E]">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>4. Action Plan</span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-[#57534E] italic pt-1 border-t border-[#E7E5E4]">
+                  Cross-referencing legal facts against CrPC, PECA 2016, and verified official Pakistani procedures...
+                </p>
               </div>
             )}
 

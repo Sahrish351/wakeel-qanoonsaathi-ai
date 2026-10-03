@@ -45,7 +45,9 @@ import {
   getCaseDocuments,
   getCaseEvidenceItems,
   getVerifiedSources,
-  createConsultationRequest
+  createConsultationRequest,
+  addCaseFollowUp,
+  getCaseActionPlanHistory
 } from '@/lib/api/database';
 import type {
   Case,
@@ -101,6 +103,15 @@ export default function CaseDetailPage() {
   const [consultationNotes, setConsultationNotes] = useState('');
   const [requestingLawyer, setRequestingLawyer] = useState(false);
   const [lawyerRequestedSuccess, setLawyerRequestedSuccess] = useState(false);
+  // Follow-Up State (D6)
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [followUpText, setFollowUpText] = useState('');
+  const [followUpUrgency, setFollowUpUrgency] = useState<UrgencyLevel | undefined>(undefined);
+  const [submittingFollowUp, setSubmittingFollowUp] = useState(false);
+  const [followUpSuccess, setFollowUpSuccess] = useState(false);
+
+  // Plan History State (D7)
+  const [planHistory, setPlanHistory] = useState<ActionPlan[]>([]);
 
   const loadAllCaseDetails = async () => {
     if (!id) return;
@@ -115,14 +126,15 @@ export default function CaseDetailPage() {
       }
       setCaseData(c);
 
-      const [fData, eData, planData, tData, docData, evData, srcData] = await Promise.all([
+      const [fData, eData, planData, tData, docData, evData, srcData, historyData] = await Promise.all([
         getCaseFacts(id),
         getCaseEvents(id),
         getCaseActionPlan(id),
         getUserTasks(id),
         getCaseDocuments(id),
         getCaseEvidenceItems(id),
-        getVerifiedSources()
+        getVerifiedSources(),
+        getCaseActionPlanHistory(id)
       ]);
 
       setFacts(fData);
@@ -132,6 +144,7 @@ export default function CaseDetailPage() {
       setDocuments(docData);
       setEvidenceItems(evData);
       setVerifiedSources(srcData);
+      setPlanHistory(historyData);
     } catch (err: any) {
       console.error('[CaseDetailPage] Load error:', err);
       setError(err.message || 'Error loading case workspace.');
@@ -371,6 +384,30 @@ export default function CaseDetailPage() {
     }
   };
 
+  const handleFollowUpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !followUpText.trim()) return;
+    setSubmittingFollowUp(true);
+    try {
+      await addCaseFollowUp({
+        caseId: id,
+        updateText: followUpText.trim(),
+        newUrgency: followUpUrgency
+      });
+      setFollowUpSuccess(true);
+      setFollowUpText('');
+      setShowFollowUpModal(false);
+      const [c, eData] = await Promise.all([getCaseById(id), getCaseEvents(id)]);
+      if (c) setCaseData(c);
+      setEvents(eData);
+      setTimeout(() => setFollowUpSuccess(false), 5000);
+    } catch (err: any) {
+      alert('Failed to register follow-up: ' + err.message);
+    } finally {
+      setSubmittingFollowUp(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="py-24 flex flex-col items-center justify-center space-y-3">
@@ -472,6 +509,16 @@ export default function CaseDetailPage() {
               <option value="closed">Status: Closed</option>
               <option value="escalated">Status: Escalated</option>
             </select>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFollowUpModal(true)}
+              className="text-xs border-stone-300 text-stone-700 hover:bg-stone-50"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Incident Follow-Up
+            </Button>
 
             <Button
               variant="outline"
@@ -1204,6 +1251,67 @@ export default function CaseDetailPage() {
                   {requestingLawyer ? 'Submitting...' : 'Confirm & Request Consultation'}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Incident Follow-Up Modal (D6) */}
+      {showFollowUpModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <Card className="max-w-md w-full bg-white shadow-xl border border-stone-200">
+            <CardHeader className="border-b border-stone-100 pb-3 flex flex-row items-center justify-between">
+              <h3 className="font-heading text-lg font-bold text-stone-900">Record New Incident Update</h3>
+              <button onClick={() => setShowFollowUpModal(false)} className="text-stone-400 hover:text-stone-600 text-sm">
+                ✕
+              </button>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4 text-xs">
+              <p className="text-stone-600 leading-relaxed">
+                Provide latest developments for <span className="font-semibold text-stone-900">{caseData.title}</span> (e.g. repeated threats, new notices served, police station visit). This update will be appended to the case timeline without overwriting historical facts.
+              </p>
+
+              <form onSubmit={handleFollowUpSubmit} className="space-y-4">
+                <Textarea
+                  label="What Happened? (New Details) *"
+                  placeholder="e.g. Received a second WhatsApp call from international number threatening to leak photos unless Rs 50,000 sent by 6 PM."
+                  rows={4}
+                  value={followUpText}
+                  onChange={(e) => setFollowUpText(e.target.value)}
+                  required
+                />
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Has the Urgency Changed?
+                  </label>
+                  <select
+                    value={followUpUrgency || caseData.urgency}
+                    onChange={(e) => setFollowUpUrgency(e.target.value as UrgencyLevel)}
+                    className="w-full px-3 py-2 text-xs bg-white border border-stone-200 rounded-lg text-stone-700 font-medium"
+                  >
+                    <option value="routine">Routine (No immediate risk)</option>
+                    <option value="moderate">Moderate (Action needed in coming days)</option>
+                    <option value="high">High (Extortion/Summons deadline imminent)</option>
+                    <option value="emergency">Emergency (Immediate physical danger / arrest threat)</option>
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
+                  <Button variant="ghost" size="sm" type="button" onClick={() => setShowFollowUpModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    type="submit"
+                    disabled={submittingFollowUp}
+                    className="bg-[var(--color-accent)] text-white"
+                  >
+                    {submittingFollowUp ? 'Logging...' : 'Save Incident Update'}
+                  </Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </div>

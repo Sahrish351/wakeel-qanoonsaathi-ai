@@ -24,6 +24,7 @@ import {
   getUserCases,
   getCaseById,
   getCaseActionPlan,
+  getCaseActionPlanHistory,
   saveActionPlan,
   getVerifiedSources,
   createTask
@@ -37,6 +38,7 @@ export default function ActionPlanPage() {
   const [selectedCaseId, setSelectedCaseId] = useState<string>(id || '');
   const [currentCase, setCurrentCase] = useState<Case | null>(null);
   const [actionPlan, setActionPlan] = useState<ActionPlan | null>(null);
+  const [planHistory, setPlanHistory] = useState<ActionPlan[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
   const [taskAddedIndex, setTaskAddedIndex] = useState<number | null>(null);
@@ -52,14 +54,16 @@ export default function ActionPlanPage() {
         setSelectedCaseId(targetId);
 
         if (targetId) {
-          const [c, plan, verified] = await Promise.all([
+          const [c, plan, verified, history] = await Promise.all([
             getCaseById(targetId),
             getCaseActionPlan(targetId),
-            getVerifiedSources()
+            getVerifiedSources(),
+            getCaseActionPlanHistory(targetId)
           ]);
           setCurrentCase(c);
           setActionPlan(plan);
           setSources(verified);
+          setPlanHistory(history);
         }
       } catch (err) {
         console.error('[ActionPlanPage] Error initializing plan:', err);
@@ -74,12 +78,14 @@ export default function ActionPlanPage() {
     setSelectedCaseId(newCaseId);
     setLoading(true);
     try {
-      const [c, plan] = await Promise.all([
+      const [c, plan, history] = await Promise.all([
         getCaseById(newCaseId),
-        getCaseActionPlan(newCaseId)
+        getCaseActionPlan(newCaseId),
+        getCaseActionPlanHistory(newCaseId)
       ]);
       setCurrentCase(c);
       setActionPlan(plan);
+      setPlanHistory(history);
     } catch (err) {
       console.error('[ActionPlanPage] Error loading selected case plan:', err);
     } finally {
@@ -191,6 +197,32 @@ export default function ActionPlanPage() {
         </Card>
       ) : (
         <div className="space-y-6">
+          {/* Version Switcher Bar (D7) */}
+          {planHistory.length > 1 && (
+            <div className="flex items-center gap-2 bg-stone-50 p-2.5 rounded-xl border border-stone-200 text-xs">
+              <span className="font-semibold text-stone-600 pl-1">Plan Revision History:</span>
+              <div className="flex gap-1.5 overflow-x-auto">
+                {planHistory.map((p) => {
+                  const isCurrentSelected = actionPlan.id === p.id;
+                  const isLatest = planHistory[0]?.id === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setActionPlan(p)}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                        isCurrentSelected
+                          ? 'bg-[var(--color-accent)] text-white'
+                          : 'bg-white text-stone-700 border border-stone-200 hover:bg-stone-100'
+                      }`}
+                    >
+                      v{p.version} {isLatest ? '(Latest)' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Version and Confidence Header */}
           <div className="flex items-center justify-between px-1 text-xs text-stone-500">
             <span className="font-medium">

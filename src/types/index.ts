@@ -439,3 +439,15 @@ export const ALLOWED_EVIDENCE_TYPES = [
 
 export const MAX_FILE_SIZE_MB = 20;
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+// ─── NOTIFICATION ───────────────────────────────────────────
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: 'task' | 'deadline' | 'consultation' | 'action_plan' | 'system' | 'case_update';
+  link: string | null;
+  is_read: boolean;
+  created_at: string;
+}

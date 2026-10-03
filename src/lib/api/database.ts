@@ -23,6 +23,7 @@ import type {
   ConsultationStatus,
   ConfidenceLevel,
   Profile,
+  AppNotification,
 } from '@/types';
 
 // ============================================================================
@@ -1219,4 +1220,185 @@ export async function getAdminUsers(): Promise<Profile[]> {
   }
   return (data || []) as Profile[];
 }
+
+// ============================================================================
+// NOTIFICATION CENTER SERVICE (public.notifications)
+// ============================================================================
+export async function getUserNotifications(): Promise<AppNotification[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  if (error) {
+    console.warn('[getUserNotifications] Error:', error.message);
+    return [];
+  }
+  return (data || []) as AppNotification[];
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', id)
+    .eq('user_id', user.id);
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', user.id)
+    .eq('is_read', false);
+}
+
+export async function createNotification(params: {
+  title: string;
+  message: string;
+  type: AppNotification['type'];
+  link?: string;
+  userId?: string;
+}): Promise<AppNotification | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  const targetUserId = params.userId || user?.id;
+  if (!targetUserId) return null;
+
+  const { data, error } = await supabase
+    .from('notifications')
+    .insert({
+      user_id: targetUserId,
+      title: params.title,
+      message: params.message,
+      type: params.type,
+      link: params.link || null,
+      is_read: false,
+    })
+    .select('*')
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[createNotification] Error:', error.message);
+    return null;
+  }
+  return data as AppNotification | null;
+}
+
+// ============================================================================
+// CASE FOLLOW-UP & REASSESSMENT SERVICE (D6)
+// ============================================================================
+export async function addCaseFollowUp(params: {
+  caseId: string;
+  updateText: string;
+  newUrgency?: UrgencyLevel;
+}): Promise<CaseEvent> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Authentication required');
+
+  // 1. Record milestone in case_events
+  const { data: eventData, error: eventErr } = await supabase
+    .from('case_events')
+    .insert({
+      case_id: params.caseId,
+      event_type: 'user_follow_up',
+      title: 'Incident Update Received',
+      description: params.updateText,
+      occurred_at: new Date().toISOString(),
+      created_by: 'citizen',
+    })
+    .select('*')
+    .single();
+
+  if (eventErr || !eventData) {
+    throw new Error(eventErr?.message || 'Failed to record follow-up event');
+  }
+
+  // 2. If urgency changed, update case
+  if (params.newUrgency) {
+    await supabase
+      .from('cases')
+      .update({ urgency: params.newUrgency })
+      .eq('id', params.caseId)
+      .eq('user_id', user.id);
+  }
+
+  // 3. Create a notification
+  await createNotification({
+    title: 'Case Follow-Up Registered',
+    message: `New incident details added to case timeline.`,
+    type: 'case_update',
+    link: `/cases/${params.caseId}`,
+  });
+
+  return eventData as CaseEvent;
+}
+
+// ============================================================================
+// ACTION PLAN VERSION HISTORY (D7)
+// ============================================================================
+export async function getCaseActionPlanHistory(caseId: string): Promise<ActionPlan[]> {
+  const { data, error } = await supabase
+    .from('action_plans')
+    .select('*')
+    .eq('case_id', caseId)
+    .order('version', { ascending: false });
+
+  if (error) {
+    console.warn('[getCaseActionPlanHistory] Error:', error.message);
+    return [];
+  }
+  return (data || []) as ActionPlan[];
+}
+
+// ============================================================================
+// USER PROFILE MANAGEMENT (D12)
+// ============================================================================
+export async function getUserProfile(): Promise<Profile | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[getUserProfile] Error:', error.message);
+    return null;
+  }
+  return data as Profile | null;
+}
+
+export async function updateUserProfile(updates: Partial<Profile>): Promise<Profile> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Authentication required');
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', user.id)
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message || 'Failed to update profile');
+  }
+  return data as Profile;
+}
+
 
