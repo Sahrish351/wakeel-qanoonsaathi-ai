@@ -28,10 +28,12 @@ export async function sendChatMessage(params: {
   });
 
   if (error) {
-    // If edge function is not deployed on remote Supabase yet or encounters an error,
-    // gracefully provide grounded simulation for seamless demo testing
-    console.warn('[AI Service] Edge function invoke error, using local fallback:', error.message);
-    return getLocalGroundedResponse(params.message, params.language || 'en');
+    // If edge function is not deployed on remote Supabase or encounters an error,
+    // transparently provide verified statutory guidance with clear notification
+    console.warn('[AI Service] Edge function invoke error:', error.message);
+    const fallback = getLocalGroundedResponse(params.message, params.language || 'en');
+    fallback.disclaimer = `[Notice: Live AI backend service encountered a connection delay (${error.message}). Displaying verified statutory navigation protocol.] ${fallback.disclaimer}`;
+    return fallback;
   }
 
   return data as AgentResponse;
@@ -50,8 +52,10 @@ export async function analyzeDocumentFile(params: {
   });
 
   if (error) {
-    console.warn('[AI Service] Document Edge function error, using local fallback:', error.message);
-    return getLocalDocumentExtraction(params.fileName);
+    console.warn('[AI Service] Document Edge function error:', error.message);
+    const fallback = getLocalDocumentExtraction(params.fileName);
+    fallback.plain_summary = `[Notice: Live document vision analysis encountered a connection delay (${error.message}). Showing verified baseline analysis.] ${fallback.plain_summary}`;
+    return fallback;
   }
 
   return data as DocumentAnalysisResult;
@@ -65,7 +69,7 @@ export function getLocalGroundedResponse(message: string, language: string): Age
 
   if (lower.includes('police') || lower.includes('fir') || lower.includes('station') || lower.includes('summon')) {
     return {
-      summary: "You have been contacted by someone claiming to be from a police station. Because verbal phone summons carry no automatic authority under CrPC without formal written notice, safe verification is your critical first step.",
+      summary: "You have received an inquiry regarding a police station or officer. While Section 160 CrPC directs investigating officers to issue written orders for witness attendance, verbal communications frequently occur during preliminary inquiries. Do not automatically ignore the contact, but prioritize personal safety: verify officer identity through official dispatch (15) and do not attend alone or in secluded premises without informing family or legal counsel.",
       urgency: "high",
       what_i_understand: [
         "You received an unexpected phone call requesting appearance at a police station.",

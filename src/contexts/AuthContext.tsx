@@ -180,9 +180,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateProfile = useCallback(async (updates: Partial<Profile>) => {
     if (!user) throw new Error('Not authenticated');
 
+    // Prevent role escalation from client
+    const { role: _role, id: _id, created_at: _created, ...safeUpdates } = updates as any;
+
     const { error } = await supabase
       .from('profiles')
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update({ ...safeUpdates, updated_at: new Date().toISOString() })
       .eq('id', user.id);
 
     if (error) throw new Error(error.message);

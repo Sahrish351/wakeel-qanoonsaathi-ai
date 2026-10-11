@@ -430,6 +430,42 @@ export async function createConsultationRequest(params: {
   return data as Consultation;
 }
 
+export async function getUserConsultations(): Promise<any[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('consultations')
+    .select(`
+      *,
+      cases (
+        id,
+        title,
+        category,
+        urgency,
+        status
+      ),
+      lawyers (
+        id,
+        province,
+        city,
+        consultation_modes,
+        profiles (
+          full_name,
+          avatar_url
+        )
+      )
+    `)
+    .eq('user_id', user.id)
+    .order('requested_at', { ascending: false });
+
+  if (error) {
+    console.warn('[getUserConsultations] Error:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
 // ============================================================================
 // CITIZEN DASHBOARD SERVICE (Live Database Querying)
 // ============================================================================
@@ -1385,10 +1421,13 @@ export async function updateUserProfile(updates: Partial<Profile>): Promise<Prof
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Authentication required');
 
+  // Prevent role tampering or ID modification on client
+  const { role: _role, id: _id, created_at: _created, ...safeUpdates } = updates as any;
+
   const { data, error } = await supabase
     .from('profiles')
     .update({
-      ...updates,
+      ...safeUpdates,
       updated_at: new Date().toISOString(),
     })
     .eq('id', user.id)
