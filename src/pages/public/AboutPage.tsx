@@ -16,12 +16,6 @@ export default function AboutPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-16">
-        {isDev && (
-          <span className="inline-block bg-amber-100 text-amber-700 text-xs font-mono px-3 py-1 rounded-full mb-6">
-            Coming in Phase 2 — Full mission story, team, and methodology
-          </span>
-        )}
-
         <h1 className="font-heading text-[#1C1917] mb-4" style={{ fontSize: 'clamp(2rem, 5vw, 3rem)' }}>
           About Wakeel
         </h1>
@@ -34,10 +28,10 @@ export default function AboutPage() {
 
         <div className="grid md:grid-cols-2 gap-6 mb-12">
           {[
-            { heading: 'Our Mission', body: 'Democratise legal knowledge for 220 million Pakistanis through responsible, accurate AI.' },
-            { heading: 'Our Methodology', body: 'Grounded in Pakistani statutes, case law, and court procedures — verified by qualified legal professionals.' },
-            { heading: 'Safety First', body: 'Wakeel never provides legal advice. We provide information and connect you to verified lawyers.' },
-            { heading: 'Privacy by Design', body: 'End-to-end encryption, zero data selling, and full user control over all stored information.' },
+            { heading: 'Our Mission', body: 'Democratise legal knowledge for 220 million Pakistanis through responsible, accurate AI and verified procedure navigation.' },
+            { heading: 'Our Methodology', body: 'Grounded in Pakistani statutes, case law, and court procedures — verified by qualified legal professionals and public bar registries.' },
+            { heading: 'Safety First', body: 'Wakeel never replaces licensed advocates. We provide structured information and connect you to verified bar council advocates.' },
+            { heading: 'Privacy by Design', body: 'End-to-end data segregation with PostgreSQL Row-Level Security, zero data selling, and client-side cryptographic hashing.' },
           ].map(({ heading, body }) => (
             <div key={heading} className="bg-white rounded-2xl border border-[#1C1917]/10 p-6 shadow-sm">
               <h2 className="font-heading text-[#1C1917] text-xl mb-2">{heading}</h2>
@@ -46,8 +40,14 @@ export default function AboutPage() {
           ))}
         </div>
 
-        <div className="border-2 border-dashed border-[#7C3AED]/30 rounded-2xl p-10 text-center">
-          <p className="text-[#1C1917]/30 font-heading text-xl">[Section: Team &amp; Partners — Phase 2]</p>
+        <div className="bg-white rounded-2xl border border-[#1C1917]/10 p-8 shadow-sm">
+          <h2 className="font-heading text-2xl text-[#1C1917] mb-3">Statutory Grounding &amp; Civic Impact</h2>
+          <p className="text-sm text-[#1C1917]/70 leading-relaxed mb-4">
+            In Pakistan, thousands of citizens face procedural intimidation simply because statutory provisions like Section 160 CrPC (formal written witness summons), Section 498 CrPC (pre-arrest bail), and Section 21 of the Prevention of Electronic Crimes Act 2016 (cyber harassment) are inaccessible in everyday language.
+          </p>
+          <p className="text-sm text-[#1C1917]/70 leading-relaxed">
+            Wakeel bridges this divide through bilingual natural language parsing, automatic evidence hashing (SHA-256), and transparent escalation to licensed human counsel.
+          </p>
         </div>
       </main>
     </div>

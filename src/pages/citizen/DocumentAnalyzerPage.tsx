@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText,
   UploadCloud,
@@ -21,6 +22,7 @@ import { analyzeDocumentFile, type DocumentAnalysisResult } from '@/lib/api/ai';
 import { uploadAndAnalyzeDocument } from '@/lib/api/database';
 
 export default function DocumentAnalyzerPage() {
+  const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<DocumentAnalysisResult | null>(null);
@@ -255,9 +257,22 @@ export default function DocumentAnalyzerPage() {
               )}
 
               {/* Recommended Next Action */}
-              <div className="p-4 rounded-xl bg-[#059669]/5 border border-[#059669]/20 text-xs space-y-1">
-                <p className="font-bold text-[#059669]">Recommended Legal Step:</p>
-                <p className="text-[#57534E]">{result.recommended_action}</p>
+              <div className="p-4 rounded-xl bg-[#059669]/5 border border-[#059669]/20 text-xs space-y-3">
+                <div>
+                  <p className="font-bold text-[#059669]">Recommended Legal Step:</p>
+                  <p className="text-[#57534E] mt-0.5">{result.recommended_action}</p>
+                </div>
+                <div className="flex items-center gap-2 pt-1 border-t border-[#059669]/20">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => navigate('/cases/new')}
+                    className="text-xs"
+                    rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+                  >
+                    Open Case File for this Notice
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (

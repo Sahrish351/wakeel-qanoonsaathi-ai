@@ -27,12 +27,6 @@ export default function PrivacyPage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-16">
-        {isDev && (
-          <span className="inline-block bg-amber-100 text-amber-700 text-xs font-mono px-3 py-1 rounded-full mb-6">
-            Coming in Phase 1 — Lawyer-reviewed final policy text
-          </span>
-        )}
-
         <h1 className="font-heading text-[#1C1917] mb-2" style={{ fontSize: 'clamp(2rem, 5vw, 3rem)' }}>
           Privacy Policy
         </h1>

@@ -87,6 +87,7 @@ export const router = createBrowserRouter([
       { path: '/how-it-works', element: <PageSuspense><HowItWorksPage /></PageSuspense> },
       { path: '/safety', element: <PageSuspense><SafetyCenterPublicPage /></PageSuspense> },
       { path: '/find-a-lawyer', element: <PageSuspense><LawyerDirectoryPublicPage /></PageSuspense> },
+      { path: '/resources', element: <PageSuspense><ResourcesPage /></PageSuspense> },
       { path: '/about', element: <PageSuspense><AboutPage /></PageSuspense> },
       { path: '/privacy', element: <PageSuspense><PrivacyPage /></PageSuspense> },
       { path: '/terms', element: <PageSuspense><TermsPage /></PageSuspense> },
@@ -120,6 +121,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/dashboard', element: <PageSuspense><DashboardPage /></PageSuspense> },
       { path: '/ai', element: <PageSuspense><AIPage /></PageSuspense> },
+      { path: '/wakeel', element: <PageSuspense><AIPage /></PageSuspense> },
       { path: '/cases', element: <PageSuspense><CasesPage /></PageSuspense> },
       { path: '/cases/new', element: <PageSuspense><NewCasePage /></PageSuspense> },
       { path: '/cases/:id', element: <PageSuspense><CaseDetailPage /></PageSuspense> },

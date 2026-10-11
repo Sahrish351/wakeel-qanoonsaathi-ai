@@ -105,6 +105,11 @@ export function Navbar() {
     if (!link.roles) return true;
     if (!isAuthenticated) return false;
     return role ? link.roles.includes(role) : false;
+  }).map(link => {
+    if (link.key === 'lawyers' && !isAuthenticated) {
+      return { ...link, href: '/find-a-lawyer' };
+    }
+    return link;
   });
 
   // ── Active link check ────────────────────────────────────────
