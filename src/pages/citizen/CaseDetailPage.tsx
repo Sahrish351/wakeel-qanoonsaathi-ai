@@ -22,7 +22,8 @@ import {
   FileCheck,
   Send,
   Loader2,
-  HelpCircle
+  HelpCircle,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
@@ -103,6 +104,7 @@ export default function CaseDetailPage() {
   const [consultationNotes, setConsultationNotes] = useState('');
   const [requestingLawyer, setRequestingLawyer] = useState(false);
   const [lawyerRequestedSuccess, setLawyerRequestedSuccess] = useState(false);
+  const [consultIsSimulated, setConsultIsSimulated] = useState(false);
   // Follow-Up State (D6)
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [followUpText, setFollowUpText] = useState('');
@@ -367,12 +369,13 @@ export default function CaseDetailPage() {
     setRequestingLawyer(true);
     try {
       // Find an active demo lawyer matching jurisdiction
-      const syntheticLawyerId = '00000000-0000-0000-0000-000000000101'; // Default verified advocate
-      await createConsultationRequest({
+      const syntheticLawyerId = '00000000-0000-0000-0003-000000000001'; // Demo advocate (Advocate Ayesha Malik [DEMO])
+      const res = await createConsultationRequest({
         lawyerId: syntheticLawyerId,
         caseId: id,
-        notes: consultationNotes
+        notes: consultationNotes,
       });
+      setConsultIsSimulated(Boolean(res.is_simulated));
       setLawyerRequestedSuccess(true);
       setShowLawyerModal(false);
       const eData = await getCaseEvents(id);
@@ -1139,10 +1142,20 @@ export default function CaseDetailPage() {
           </div>
 
           {lawyerRequestedSuccess && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <div className={`p-4 rounded-xl text-xs flex items-center gap-3 border ${
+              consultIsSimulated
+                ? 'bg-amber-50 border-amber-200 text-amber-900'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+            }`}>
+              {consultIsSimulated ? (
+                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              ) : (
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+              )}
               <span>
-                Consultation request submitted successfully. The assigned advocate will review your consented case brief.
+                {consultIsSimulated
+                  ? 'Demo simulation recorded. This was a synthetic demonstration profile — no real advocate was contacted, no legal booking was created, and no consultation was scheduled.'
+                  : 'Consultation request submitted successfully. The assigned advocate will review your consented case brief.'}
               </span>
             </div>
           )}

@@ -335,14 +335,16 @@ export async function getVerifiedLawyers(province?: string): Promise<any[]> {
     .from('lawyers')
     .select(`
       id,
+      name,
       bio,
       province,
       city,
       languages,
       consultation_modes,
       verified,
+      is_demo,
       availability_status,
-      profiles!inner (
+      profiles (
         full_name,
         avatar_url
       ),
@@ -350,7 +352,7 @@ export async function getVerifiedLawyers(province?: string): Promise<any[]> {
         category
       )
     `)
-    .eq('verified', true);
+    .or('verified.eq.true,is_demo.eq.true');
 
   if (province && province !== 'All') {
     query = query.eq('province', province);
@@ -364,16 +366,20 @@ export async function getVerifiedLawyers(province?: string): Promise<any[]> {
 
   return (data || []).map((l: any) => ({
     id: l.id,
-    name: l.profiles?.full_name || 'Advocate',
+    name: l.name || l.profiles?.full_name || (l.is_demo ? 'Advocate High Court [DEMO]' : 'Advocate High Court'),
     province: l.province,
     city: l.city,
     specialization: (l.lawyer_specializations || []).map((s: any) => s.category).join(', ') || 'General Law',
     experience_years: 10,
     consultation_modes: l.consultation_modes || ['phone'],
     languages: l.languages || ['en', 'ur'],
-    bio: l.bio || '[DEMO PROFILE] High Court Advocate',
+    bio: l.bio || (l.is_demo ? '[DEMO PROFILE] High Court Advocate' : 'High Court Advocate'),
+    verified: !!l.verified,
+    is_demo: !!l.is_demo,
     match_score: 95,
-    match_reasons: ['Licensed Bar Advocate', 'Active jurisdiction match', 'Confidential brief handling']
+    match_reasons: l.is_demo
+      ? ['[DEMO] Simulated advocate profile for testing', 'Active jurisdiction match']
+      : ['Licensed Bar Advocate', 'Active jurisdiction match', 'Confidential brief handling']
   }));
 }
 
@@ -384,6 +390,35 @@ export async function createConsultationRequest(params: {
 }): Promise<Consultation> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Authentication required');
+
+  // Authoritative demo verification against database: Never trust client parameters blindly.
+  const { data: lawyerRec, error: lawyerErr } = await supabase
+    .from('lawyers')
+    .select('is_demo')
+    .eq('id', params.lawyerId)
+    .maybeSingle();
+
+  if (lawyerErr) {
+    throw new Error(`Database error verifying advocate status: ${lawyerErr.message}`);
+  }
+  if (!lawyerRec) {
+    throw new Error('Advocate profile not found. Consultation request cannot proceed.');
+  }
+
+  // If this is a synthetic demo profile: return simulation object without inserting into public.consultations
+  if (lawyerRec.is_demo === true) {
+    return {
+      id: 'demo-simulated-' + Date.now(),
+      case_id: params.caseId || '00000000-0000-0000-0000-000000000000',
+      user_id: user.id,
+      lawyer_id: params.lawyerId,
+      status: 'pending',
+      requested_at: new Date().toISOString(),
+      scheduled_at: null,
+      consented_fields: ['DEMO_SIMULATION'],
+      is_simulated: true,
+    };
+  }
 
   let targetCaseId = params.caseId;
   if (!targetCaseId) {

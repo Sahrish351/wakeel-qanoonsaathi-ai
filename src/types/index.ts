@@ -284,7 +284,8 @@ export interface SourceReference {
 // ─── LAWYER ──────────────────────────────────────────────────
 export interface Lawyer {
   id: string;
-  profile_id: string;
+  profile_id: string | null;
+  name?: string;
   bio: string | null;
   specializations: CaseCategory[];
   province: string;
@@ -292,6 +293,7 @@ export interface Lawyer {
   languages: AppLanguage[];
   consultation_modes: ConsultationMode[];
   verified: boolean;
+  is_demo?: boolean;
   availability_status: AvailabilityStatus;
   profile?: Profile;
   match_score?: number;
@@ -310,6 +312,7 @@ export interface Consultation {
   consented_fields: string[];
   lawyer?: Lawyer;
   case?: Case;
+  is_simulated?: boolean;
 }
 
 // ─── FEEDBACK ────────────────────────────────────────────────

@@ -2,186 +2,125 @@
 -- Seed Data: seed/demo_lawyers.sql
 -- Description: Synthetic demo legal practitioner profiles for Wakeel platform.
 --              *** ALL DATA IS FICTIONAL AND FOR DEMONSTRATION PURPOSES ONLY ***
---              All bios are prefixed with "[DEMO PROFILE]".
+--              All profiles are labeled "[DEMO]" with bios prefixed "[DEMO PROFILE - NOT A REAL ADVOCATE]".
 --              Covers Punjab, Sindh, KPK, Balochistan, and Islamabad.
+--              SECURITY: Does NOT create fake auth.users or fake public.profiles.
+--                        Inserts directly into public.lawyers with profile_id = NULL.
+--                        verified = FALSE (fictional advocates are NOT marked verified).
+--                        is_demo = TRUE (explicitly flagged as synthetic demo entities).
 -- =============================================================================
 
--- ---------------------------------------------------------------------------
--- 1. Create Synthetic Demo Auth Users (Supabase auth.users)
--- ---------------------------------------------------------------------------
-INSERT INTO auth.users (
-  id,
-  instance_id,
-  aud,
-  role,
-  email,
-  encrypted_password,
-  email_confirmed_at,
-  raw_app_meta_data,
-  raw_user_meta_data,
-  created_at,
-  updated_at
-)
-VALUES
-  (
-    '00000000-0000-0000-0002-000000000001',
-    '00000000-0000-0000-0000-000000000000',
-    'authenticated',
-    'authenticated',
-    'demo.ayesha.malik@wakeel-demo.local',
-    crypt('DemoPassword123!', gen_salt('bf')),
-    NOW(),
-    '{"provider":"email","providers":["email"]}',
-    '{"full_name":"Advocate Ayesha Malik","role":"lawyer"}',
-    NOW(),
-    NOW()
-  ),
-  (
-    '00000000-0000-0000-0002-000000000002',
-    '00000000-0000-0000-0000-000000000000',
-    'authenticated',
-    'authenticated',
-    'demo.tariq.chaudhry@wakeel-demo.local',
-    crypt('DemoPassword123!', gen_salt('bf')),
-    NOW(),
-    '{"provider":"email","providers":["email"]}',
-    '{"full_name":"Advocate Tariq Mehmood Chaudhry","role":"lawyer"}',
-    NOW(),
-    NOW()
-  ),
-  (
-    '00000000-0000-0000-0002-000000000003',
-    '00000000-0000-0000-0000-000000000000',
-    'authenticated',
-    'authenticated',
-    'demo.zainab.bukhari@wakeel-demo.local',
-    crypt('DemoPassword123!', gen_salt('bf')),
-    NOW(),
-    '{"provider":"email","providers":["email"]}',
-    '{"full_name":"Advocate Zainab Bukhari","role":"lawyer"}',
-    NOW(),
-    NOW()
-  ),
-  (
-    '00000000-0000-0000-0002-000000000004',
-    '00000000-0000-0000-0000-000000000000',
-    'authenticated',
-    'authenticated',
-    'demo.farhan.rizvi@wakeel-demo.local',
-    crypt('DemoPassword123!', gen_salt('bf')),
-    NOW(),
-    '{"provider":"email","providers":["email"]}',
-    '{"full_name":"Advocate Syed Farhan Rizvi","role":"lawyer"}',
-    NOW(),
-    NOW()
-  ),
-  (
-    '00000000-0000-0000-0002-000000000005',
-    '00000000-0000-0000-0000-000000000000',
-    'authenticated',
-    'authenticated',
-    'demo.mehnaz.soomro@wakeel-demo.local',
-    crypt('DemoPassword123!', gen_salt('bf')),
-    NOW(),
-    '{"provider":"email","providers":["email"]}',
-    '{"full_name":"Advocate Mehnaz Soomro","role":"lawyer"}',
-    NOW(),
-    NOW()
-  ),
-  (
-    '00000000-0000-0000-0002-000000000006',
-    '00000000-0000-0000-0000-000000000000',
-    'authenticated',
-    'authenticated',
-    'demo.arbab.khan@wakeel-demo.local',
-    crypt('DemoPassword123!', gen_salt('bf')),
-    NOW(),
-    '{"provider":"email","providers":["email"]}',
-    '{"full_name":"Advocate Arbab Sher Khan","role":"lawyer"}',
-    NOW(),
-    NOW()
-  ),
-  (
-    '00000000-0000-0000-0002-000000000007',
-    '00000000-0000-0000-0000-000000000000',
-    'authenticated',
-    'authenticated',
-    'demo.maryam.khattak@wakeel-demo.local',
-    crypt('DemoPassword123!', gen_salt('bf')),
-    NOW(),
-    '{"provider":"email","providers":["email"]}',
-    '{"full_name":"Advocate Maryam Khattak","role":"lawyer"}',
-    NOW(),
-    NOW()
-  ),
-  (
-    '00000000-0000-0000-0002-000000000008',
-    '00000000-0000-0000-0000-000000000000',
-    'authenticated',
-    'authenticated',
-    'demo.jahangir.baloch@wakeel-demo.local',
-    crypt('DemoPassword123!', gen_salt('bf')),
-    NOW(),
-    '{"provider":"email","providers":["email"]}',
-    '{"full_name":"Advocate Mir Jahangir Baloch","role":"lawyer"}',
-    NOW(),
-    NOW()
-  ),
-  (
-    '00000000-0000-0000-0002-000000000009',
-    '00000000-0000-0000-0000-000000000000',
-    'authenticated',
-    'authenticated',
-    'demo.bilal.rind@wakeel-demo.local',
-    crypt('DemoPassword123!', gen_salt('bf')),
-    NOW(),
-    '{"provider":"email","providers":["email"]}',
-    '{"full_name":"Advocate Bilal Ahmed Rind","role":"lawyer"}',
-    NOW(),
-    NOW()
-  ),
-  (
-    '00000000-0000-0000-0002-000000000010',
-    '00000000-0000-0000-0000-000000000000',
-    'authenticated',
-    'authenticated',
-    'demo.daniyal.qureshi@wakeel-demo.local',
-    crypt('DemoPassword123!', gen_salt('bf')),
-    NOW(),
-    '{"provider":"email","providers":["email"]}',
-    '{"full_name":"Barrister Daniyal Qureshi","role":"lawyer"}',
-    NOW(),
-    NOW()
-  )
-ON CONFLICT (id) DO NOTHING;
+BEGIN;
 
 -- ---------------------------------------------------------------------------
--- 2. Upsert Profiles for Demo Lawyers
+-- 0. Concurrency Control: Acquire table-level lock to prevent race conditions
 -- ---------------------------------------------------------------------------
-INSERT INTO public.profiles (id, full_name, role, province, city, preferred_language)
-VALUES
-  ('00000000-0000-0000-0002-000000000001', 'Advocate Ayesha Malik', 'lawyer', 'Punjab', 'Lahore', 'en'),
-  ('00000000-0000-0000-0002-000000000002', 'Advocate Tariq Mehmood Chaudhry', 'lawyer', 'Punjab', 'Rawalpindi', 'ur'),
-  ('00000000-0000-0000-0002-000000000003', 'Advocate Zainab Bukhari', 'lawyer', 'Punjab', 'Faisalabad', 'en'),
-  ('00000000-0000-0000-0002-000000000004', 'Advocate Syed Farhan Rizvi', 'lawyer', 'Sindh', 'Karachi', 'en'),
-  ('00000000-0000-0000-0002-000000000005', 'Advocate Mehnaz Soomro', 'lawyer', 'Sindh', 'Hyderabad', 'ur'),
-  ('00000000-0000-0000-0002-000000000006', 'Advocate Arbab Sher Khan', 'lawyer', 'Khyber Pakhtunkhwa', 'Peshawar', 'ur'),
-  ('00000000-0000-0000-0002-000000000007', 'Advocate Maryam Khattak', 'lawyer', 'Khyber Pakhtunkhwa', 'Abbottabad', 'en'),
-  ('00000000-0000-0000-0002-000000000008', 'Advocate Mir Jahangir Baloch', 'lawyer', 'Balochistan', 'Quetta', 'ur'),
-  ('00000000-0000-0000-0002-000000000009', 'Advocate Bilal Ahmed Rind', 'lawyer', 'Balochistan', 'Gwadar', 'en'),
-  ('00000000-0000-0000-0002-000000000010', 'Barrister Daniyal Qureshi', 'lawyer', 'Islamabad Capital Territory', 'Islamabad', 'en')
-ON CONFLICT (id) DO UPDATE SET
-  full_name          = EXCLUDED.full_name,
-  role               = EXCLUDED.role,
-  province           = EXCLUDED.province,
-  city               = EXCLUDED.city,
-  preferred_language = EXCLUDED.preferred_language;
+LOCK TABLE public.lawyers, public.lawyer_specializations, public.lawyer_availability IN SHARE ROW EXCLUSIVE MODE;
 
 -- ---------------------------------------------------------------------------
--- 3. Upsert Lawyers Directory Records
+-- 1. Helper Function: Abort transaction immediately on conflict violation
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.abort_seed_conflict(p_msg TEXT)
+RETURNS TEXT LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'SEED CONFLICT ABORT: %', p_msg;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 2. Pre-Check Collision Guards: Abort before writes if any reserved ID collides
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  -- 2a. Check Lawyer IDs
+  IF EXISTS (
+    SELECT 1 FROM public.lawyers
+    WHERE id IN (
+      '00000000-0000-0000-0003-000000000001',
+      '00000000-0000-0000-0003-000000000002',
+      '00000000-0000-0000-0003-000000000003',
+      '00000000-0000-0000-0003-000000000004',
+      '00000000-0000-0000-0003-000000000005',
+      '00000000-0000-0000-0003-000000000006',
+      '00000000-0000-0000-0003-000000000007',
+      '00000000-0000-0000-0003-000000000008',
+      '00000000-0000-0000-0003-000000000009',
+      '00000000-0000-0000-0003-000000000010'
+    )
+    AND is_demo IS DISTINCT FROM TRUE
+  ) THEN
+    RAISE EXCEPTION 'SEED ABORTED: One or more reserved demo lawyer IDs already exist and belong to a non-demo record (is_demo is not TRUE)!';
+  END IF;
+
+  -- 2b. Check Specialization IDs
+  IF EXISTS (
+    SELECT 1 FROM public.lawyer_specializations ls
+    WHERE ls.id IN (
+      '00000000-0000-0000-0004-000000000001', '00000000-0000-0000-0004-000000000002', '00000000-0000-0000-0004-000000000003',
+      '00000000-0000-0000-0004-000000000004', '00000000-0000-0000-0004-000000000005', '00000000-0000-0000-0004-000000000006',
+      '00000000-0000-0000-0004-000000000007', '00000000-0000-0000-0004-000000000008', '00000000-0000-0000-0004-000000000009',
+      '00000000-0000-0000-0004-000000000010', '00000000-0000-0000-0004-000000000011', '00000000-0000-0000-0004-000000000012',
+      '00000000-0000-0000-0004-000000000013', '00000000-0000-0000-0004-000000000014', '00000000-0000-0000-0004-000000000015',
+      '00000000-0000-0000-0004-000000000016', '00000000-0000-0000-0004-000000000017', '00000000-0000-0000-0004-000000000018',
+      '00000000-0000-0000-0004-000000000019', '00000000-0000-0000-0004-000000000020', '00000000-0000-0000-0004-000000000021',
+      '00000000-0000-0000-0004-000000000022', '00000000-0000-0000-0004-000000000023', '00000000-0000-0000-0004-000000000024',
+      '00000000-0000-0000-0004-000000000025', '00000000-0000-0000-0004-000000000026', '00000000-0000-0000-0004-000000000027',
+      '00000000-0000-0000-0004-000000000028', '00000000-0000-0000-0004-000000000029', '00000000-0000-0000-0004-000000000030'
+    )
+    AND (
+      NOT EXISTS (
+        SELECT 1 FROM public.lawyers l
+        WHERE l.id = ls.lawyer_id AND l.is_demo = TRUE
+      )
+      OR ls.lawyer_id NOT IN (
+        '00000000-0000-0000-0003-000000000001', '00000000-0000-0000-0003-000000000002',
+        '00000000-0000-0000-0003-000000000003', '00000000-0000-0000-0003-000000000004',
+        '00000000-0000-0000-0003-000000000005', '00000000-0000-0000-0003-000000000006',
+        '00000000-0000-0000-0003-000000000007', '00000000-0000-0000-0003-000000000008',
+        '00000000-0000-0000-0003-000000000009', '00000000-0000-0000-0003-000000000010'
+      )
+    )
+  ) THEN
+    RAISE EXCEPTION 'SEED ABORTED: One or more reserved demo specialization IDs collide with an existing non-demo or unexpected record!';
+  END IF;
+
+  -- 2c. Check Availability IDs
+  IF EXISTS (
+    SELECT 1 FROM public.lawyer_availability la
+    WHERE la.id IN (
+      '00000000-0000-0000-0005-000000000001', '00000000-0000-0000-0005-000000000002', '00000000-0000-0000-0005-000000000003',
+      '00000000-0000-0000-0005-000000000004', '00000000-0000-0000-0005-000000000005', '00000000-0000-0000-0005-000000000006',
+      '00000000-0000-0000-0005-000000000007', '00000000-0000-0000-0005-000000000008', '00000000-0000-0000-0005-000000000009',
+      '00000000-0000-0000-0005-000000000010', '00000000-0000-0000-0005-000000000011', '00000000-0000-0000-0005-000000000012',
+      '00000000-0000-0000-0005-000000000013', '00000000-0000-0000-0005-000000000014', '00000000-0000-0000-0005-000000000015',
+      '00000000-0000-0000-0005-000000000016', '00000000-0000-0000-0005-000000000017', '00000000-0000-0000-0005-000000000018',
+      '00000000-0000-0000-0005-000000000019', '00000000-0000-0000-0005-000000000020', '00000000-0000-0000-0005-000000000021',
+      '00000000-0000-0000-0005-000000000022', '00000000-0000-0000-0005-000000000023'
+    )
+    AND (
+      NOT EXISTS (
+        SELECT 1 FROM public.lawyers l
+        WHERE l.id = la.lawyer_id AND l.is_demo = TRUE
+      )
+      OR la.lawyer_id NOT IN (
+        '00000000-0000-0000-0003-000000000001', '00000000-0000-0000-0003-000000000002',
+        '00000000-0000-0000-0003-000000000003', '00000000-0000-0000-0003-000000000004',
+        '00000000-0000-0000-0003-000000000005', '00000000-0000-0000-0003-000000000006',
+        '00000000-0000-0000-0003-000000000007', '00000000-0000-0000-0003-000000000008',
+        '00000000-0000-0000-0003-000000000009', '00000000-0000-0000-0003-000000000010'
+      )
+    )
+  ) THEN
+    RAISE EXCEPTION 'SEED ABORTED: One or more reserved demo availability IDs collide with an existing non-demo or unexpected record!';
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- 3. Upsert Synthetic Demo Lawyers Directory Records (Fictional Bios, No Credentials)
 -- ---------------------------------------------------------------------------
 INSERT INTO public.lawyers (
   id,
+  name,
   profile_id,
   bio,
   province,
@@ -189,130 +128,157 @@ INSERT INTO public.lawyers (
   languages,
   consultation_modes,
   verified,
+  is_demo,
   availability_status
 )
 VALUES
   (
     '00000000-0000-0000-0003-000000000001',
-    '00000000-0000-0000-0002-000000000001',
-    '[DEMO PROFILE] High Court Advocate licensed by Punjab Bar Council (Synthetic Reg: PBC-DEMO-2024-001). 10+ years representation in family disputes, khula, child custody, maintenance petitions, and workplace harassment safeguards across Lahore courts.',
+    'Advocate Ayesha Malik [DEMO]',
+    NULL,
+    '[DEMO PROFILE - NOT A REAL ADVOCATE] Fictional practitioner profile created exclusively to demonstrate family disputes, khula, child custody, and women''s legal safeguards workflow navigation in the Wakeel platform. This profile is not licensed by the Punjab Bar Council or any regulatory body, does not represent a real legal practitioner, and cannot provide legal advice or court representation.',
     'Punjab',
     'Lahore',
     ARRAY['en', 'ur', 'pa'],
     ARRAY['in_person', 'video', 'phone'],
+    FALSE,
     TRUE,
     'available'
   ),
   (
     '00000000-0000-0000-0003-000000000002',
-    '00000000-0000-0000-0002-000000000002',
-    '[DEMO PROFILE] Senior Advocate practicing at Rawalpindi District Courts and Lahore High Court Rawalpindi Bench (Synthetic Reg: PBC-DEMO-2024-002). Experienced in land revenue records (Fard, Patwari matters), property partition, and criminal defense proceedings.',
+    'Advocate Tariq Mehmood Chaudhry [DEMO]',
+    NULL,
+    '[DEMO PROFILE - NOT A REAL ADVOCATE] Fictional practitioner profile created exclusively to demonstrate land revenue records, property partition, and criminal defense procedural workflow navigation in the Wakeel platform. This profile is not licensed by any Bar Council, does not represent a real legal practitioner, and cannot provide legal advice or court representation.',
     'Punjab',
     'Rawalpindi',
     ARRAY['en', 'ur', 'pa'],
     ARRAY['in_person', 'phone'],
+    FALSE,
     TRUE,
     'available'
   ),
   (
     '00000000-0000-0000-0003-000000000003',
-    '00000000-0000-0000-0002-000000000003',
-    '[DEMO PROFILE] Advocate specializing in employment law, industrial disputes, corporate contracts, and worker welfare compliance in industrial zones of Faisalabad (Synthetic Reg: PBC-DEMO-2024-003). Member Faisalabad Bar Association.',
+    'Advocate Zainab Bukhari [DEMO]',
+    NULL,
+    '[DEMO PROFILE - NOT A REAL ADVOCATE] Fictional practitioner profile created exclusively to demonstrate employment law, industrial disputes, and corporate compliance workflow navigation in the Wakeel platform. This profile is not licensed by any Bar Council, does not represent a real legal practitioner, and cannot provide legal advice or court representation.',
     'Punjab',
     'Faisalabad',
     ARRAY['en', 'ur'],
     ARRAY['in_person', 'video'],
+    FALSE,
     TRUE,
     'available'
   ),
   (
     '00000000-0000-0000-0003-000000000004',
-    '00000000-0000-0000-0002-000000000004',
-    '[DEMO PROFILE] Advocate High Court enrolled with Sindh Bar Council (Synthetic Reg: SBC-DEMO-2024-004). Focused on cybercrime under PECA 2016, digital banking scams, fintech regulations, and electronic evidence recovery in Karachi.',
+    'Advocate Syed Farhan Rizvi [DEMO]',
+    NULL,
+    '[DEMO PROFILE - NOT A REAL ADVOCATE] Fictional practitioner profile created exclusively to demonstrate cyber harassment reporting, online financial scams under PECA, and digital evidence recovery workflow navigation in the Wakeel platform. This profile is not licensed by the Sindh Bar Council or any regulatory body, does not represent a real legal practitioner, and cannot provide legal advice or court representation.',
     'Sindh',
     'Karachi',
     ARRAY['en', 'ur', 'sd'],
     ARRAY['in_person', 'video', 'phone'],
+    FALSE,
     TRUE,
     'available'
   ),
   (
     '00000000-0000-0000-0003-000000000005',
-    '00000000-0000-0000-0002-000000000005',
-    '[DEMO PROFILE] Advocate District & Sessions Court Hyderabad (Synthetic Reg: SBC-DEMO-2024-005). Passionate about women''s rights, inheritance rights under Islamic jurisprudence, and consumer protection courts in Sindh.',
+    'Advocate Mehnaz Soomro [DEMO]',
+    NULL,
+    '[DEMO PROFILE - NOT A REAL ADVOCATE] Fictional practitioner profile created exclusively to demonstrate inheritance partition, women''s legal protections, and consumer court grievance workflow navigation in the Wakeel platform. This profile is not licensed by any Bar Council, does not represent a real legal practitioner, and cannot provide legal advice or court representation.',
     'Sindh',
     'Hyderabad',
     ARRAY['en', 'ur', 'sd'],
     ARRAY['in_person', 'phone'],
+    FALSE,
     TRUE,
     'available'
   ),
   (
     '00000000-0000-0000-0003-000000000006',
-    '00000000-0000-0000-0002-000000000006',
-    '[DEMO PROFILE] Advocate High Court enrolled with Khyber Pakhtunkhwa Bar Council (Synthetic Reg: KPBC-DEMO-2024-006). Extensive litigation background in criminal appellate defense, bail applications, police accountability, and constitutional writs in Peshawar.',
+    'Advocate Arbab Sher Khan [DEMO]',
+    NULL,
+    '[DEMO PROFILE - NOT A REAL ADVOCATE] Fictional practitioner profile created exclusively to demonstrate bail petitions, criminal procedure guidelines, and police accountability workflow navigation in the Wakeel platform. This profile is not licensed by the Khyber Pakhtunkhwa Bar Council or any regulatory body, does not represent a real legal practitioner, and cannot provide legal advice or court representation.',
     'Khyber Pakhtunkhwa',
     'Peshawar',
     ARRAY['en', 'ur', 'ps'],
     ARRAY['in_person', 'phone'],
+    FALSE,
     TRUE,
     'available'
   ),
   (
-    '00000000-0000-0000-0002-000000000007',
-    '00000000-0000-0000-0002-000000000007',
-    '[DEMO PROFILE] Advocate practicing across Hazara Division and Peshawar High Court Abbottabad Bench (Synthetic Reg: KPBC-DEMO-2024-007). Specializes in mountainous land titles, inheritance partition, and civil contractual agreements.',
+    '00000000-0000-0000-0003-000000000007',
+    'Advocate Maryam Khattak [DEMO]',
+    NULL,
+    '[DEMO PROFILE - NOT A REAL ADVOCATE] Fictional practitioner profile created exclusively to demonstrate civil contract analysis, property documentation, and consumer protection workflow navigation in the Wakeel platform. This profile is not licensed by any Bar Council, does not represent a real legal practitioner, and cannot provide legal advice or court representation.',
     'Khyber Pakhtunkhwa',
     'Abbottabad',
     ARRAY['en', 'ur', 'ps'],
     ARRAY['in_person', 'video'],
+    FALSE,
     TRUE,
     'available'
   ),
   (
-    '00000000-0000-0000-0002-000000000008',
-    '00000000-0000-0000-0002-000000000008',
-    '[DEMO PROFILE] Senior Advocate registered with Balochistan Bar Council (Synthetic Reg: BBC-DEMO-2024-008). 14 years litigating fundamental human rights, constitutional petitions, and criminal bail matters before the High Court of Balochistan in Quetta.',
+    '00000000-0000-0000-0003-000000000008',
+    'Advocate Mir Jahangir Baloch [DEMO]',
+    NULL,
+    '[DEMO PROFILE - NOT A REAL ADVOCATE] Fictional practitioner profile created exclusively to demonstrate fundamental civil rights, constitutional remedies, and public interest litigation workflow navigation in the Wakeel platform. This profile is not licensed by the Balochistan Bar Council or any regulatory body, does not represent a real legal practitioner, and cannot provide legal advice or court representation.',
     'Balochistan',
     'Quetta',
     ARRAY['en', 'ur', 'bal'],
     ARRAY['in_person', 'phone'],
+    FALSE,
     TRUE,
     'available'
   ),
   (
     '00000000-0000-0000-0003-000000000009',
-    '00000000-0000-0000-0002-000000000009',
-    '[DEMO PROFILE] Corporate and property advocate licensed with Balochistan Bar Council (Synthetic Reg: BBC-DEMO-2024-009). Advises maritime, commercial trade, logistics, and real estate investments in Gwadar Free Zone and Makran division.',
+    'Advocate Bilal Ahmed Rind [DEMO]',
+    NULL,
+    '[DEMO PROFILE - NOT A REAL ADVOCATE] Fictional practitioner profile created exclusively to demonstrate commercial agreements, maritime logistics trade compliance, and real estate contract workflow navigation in the Wakeel platform. This profile is not licensed by any Bar Council, does not represent a real legal practitioner, and cannot provide legal advice or court representation.',
     'Balochistan',
     'Gwadar',
     ARRAY['en', 'ur', 'bal'],
     ARRAY['in_person', 'video', 'phone'],
+    FALSE,
     TRUE,
     'available'
   ),
   (
     '00000000-0000-0000-0003-000000000010',
-    '00000000-0000-0000-0002-000000000010',
-    '[DEMO PROFILE] Barrister-at-Law (Lincoln''s Inn) and Advocate High Court enrolled with Islamabad Bar Council (Synthetic Reg: IBC-DEMO-2024-010). Focuses on cyber laws, corporate compliance, tax petitions, and regulatory litigation before Islamabad High Court.',
+    'Barrister Daniyal Qureshi [DEMO]',
+    NULL,
+    '[DEMO PROFILE - NOT A REAL ADVOCATE] Fictional practitioner profile created exclusively to demonstrate taxation dispute procedures, regulatory filing compliance, and cyber governance workflow navigation in the Wakeel platform. This profile is not licensed by the Islamabad Bar Council, Lincoln''s Inn, or any bar association, does not represent a real legal practitioner, and cannot provide legal advice or court representation.',
     'Islamabad Capital Territory',
     'Islamabad',
     ARRAY['en', 'ur'],
     ARRAY['in_person', 'video', 'phone'],
+    FALSE,
     TRUE,
     'available'
   )
 ON CONFLICT (id) DO UPDATE SET
+  name = CASE
+    WHEN public.lawyers.is_demo = TRUE THEN EXCLUDED.name
+    ELSE public.abort_seed_conflict('public.lawyers id ' || EXCLUDED.id::text || ' is not a demo record')
+  END,
   bio                 = EXCLUDED.bio,
   province            = EXCLUDED.province,
   city                = EXCLUDED.city,
   languages           = EXCLUDED.languages,
   consultation_modes  = EXCLUDED.consultation_modes,
   verified            = EXCLUDED.verified,
-  availability_status = EXCLUDED.availability_status;
+  is_demo             = EXCLUDED.is_demo,
+  availability_status = EXCLUDED.availability_status
+WHERE public.lawyers.is_demo = TRUE;
 
 -- ---------------------------------------------------------------------------
--- 4. Lawyer Specializations
+-- 4. Upsert Lawyer Specializations (Guarantees no modification of non-demo rows)
 -- ---------------------------------------------------------------------------
 INSERT INTO public.lawyer_specializations (id, lawyer_id, category)
 VALUES
@@ -366,10 +332,19 @@ VALUES
   ('00000000-0000-0000-0004-000000000029', '00000000-0000-0000-0003-000000000010', 'tax'),
   ('00000000-0000-0000-0004-000000000030', '00000000-0000-0000-0003-000000000010', 'business_compliance')
 ON CONFLICT (id) DO UPDATE SET
-  category = EXCLUDED.category;
+  category = CASE
+    WHEN public.lawyer_specializations.lawyer_id = EXCLUDED.lawyer_id
+     AND EXISTS (
+       SELECT 1 FROM public.lawyers l
+       WHERE l.id = EXCLUDED.lawyer_id AND l.is_demo = TRUE
+     )
+    THEN EXCLUDED.category
+    ELSE public.abort_seed_conflict('public.lawyer_specializations id ' || EXCLUDED.id::text || ' collides with an unexpected record')
+  END
+WHERE public.lawyer_specializations.lawyer_id = EXCLUDED.lawyer_id;
 
 -- ---------------------------------------------------------------------------
--- 5. Lawyer Availability Schedules
+-- 5. Upsert Lawyer Availability (Guarantees no modification of non-demo rows)
 -- ---------------------------------------------------------------------------
 INSERT INTO public.lawyer_availability (id, lawyer_id, day, start_time, end_time)
 VALUES
@@ -416,6 +391,59 @@ VALUES
   ('00000000-0000-0000-0005-000000000022', '00000000-0000-0000-0003-000000000010', 'wednesday', '16:00:00', '20:00:00'),
   ('00000000-0000-0000-0005-000000000023', '00000000-0000-0000-0003-000000000010', 'saturday', '11:00:00', '15:00:00')
 ON CONFLICT (id) DO UPDATE SET
-  day        = EXCLUDED.day,
-  start_time = EXCLUDED.start_time,
-  end_time   = EXCLUDED.end_time;
+  day = CASE
+    WHEN public.lawyer_availability.lawyer_id = EXCLUDED.lawyer_id
+     AND EXISTS (
+       SELECT 1 FROM public.lawyers l
+       WHERE l.id = EXCLUDED.lawyer_id AND l.is_demo = TRUE
+     )
+    THEN EXCLUDED.day
+    ELSE public.abort_seed_conflict('public.lawyer_availability id ' || EXCLUDED.id::text || ' collides with an unexpected record')
+  END,
+  start_time = CASE
+    WHEN public.lawyer_availability.lawyer_id = EXCLUDED.lawyer_id
+     AND EXISTS (
+       SELECT 1 FROM public.lawyers l
+       WHERE l.id = EXCLUDED.lawyer_id AND l.is_demo = TRUE
+     )
+    THEN EXCLUDED.start_time
+    ELSE public.abort_seed_conflict('public.lawyer_availability id ' || EXCLUDED.id::text || ' collides with an unexpected record')
+  END,
+  end_time = CASE
+    WHEN public.lawyer_availability.lawyer_id = EXCLUDED.lawyer_id
+     AND EXISTS (
+       SELECT 1 FROM public.lawyers l
+       WHERE l.id = EXCLUDED.lawyer_id AND l.is_demo = TRUE
+     )
+    THEN EXCLUDED.end_time
+    ELSE public.abort_seed_conflict('public.lawyer_availability id ' || EXCLUDED.id::text || ' collides with an unexpected record')
+  END
+WHERE public.lawyer_availability.lawyer_id = EXCLUDED.lawyer_id;
+
+-- ---------------------------------------------------------------------------
+-- 6. Post-Write Assertion Check: Verify all expected demo records exist
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_lawyers_count INT;
+  v_specs_count INT;
+  v_avail_count INT;
+BEGIN
+  SELECT count(*) INTO v_lawyers_count FROM public.lawyers WHERE is_demo = TRUE;
+  SELECT count(*) INTO v_specs_count FROM public.lawyer_specializations ls
+    JOIN public.lawyers l ON ls.lawyer_id = l.id WHERE l.is_demo = TRUE;
+  SELECT count(*) INTO v_avail_count FROM public.lawyer_availability la
+    JOIN public.lawyers l ON la.lawyer_id = l.id WHERE l.is_demo = TRUE;
+
+  IF v_lawyers_count <> 10 OR v_specs_count <> 30 OR v_avail_count <> 23 THEN
+    RAISE EXCEPTION 'SEED INTEGRITY FAILURE: Expected 10 demo lawyers, 30 specs, 23 availabilities. Found: % lawyers, % specs, % availabilities.',
+      v_lawyers_count, v_specs_count, v_avail_count;
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- 7. Cleanup: Drop temporary helper function within the transaction
+-- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.abort_seed_conflict(TEXT);
+
+COMMIT;

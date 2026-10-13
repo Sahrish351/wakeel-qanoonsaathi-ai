@@ -40,6 +40,7 @@ export default function LawyerProfilePage() {
   const [shareTimeline, setShareTimeline] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [consultResult, setConsultResult] = useState<any>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -85,11 +86,12 @@ export default function LawyerProfilePage() {
 
     setSubmitting(true);
     try {
-      await createConsultationRequest({
+      const res = await createConsultationRequest({
         lawyerId: lawyer.id,
         caseId: selectedCaseId || undefined,
-        notes: notes.trim()
+        notes: notes.trim(),
       });
+      setConsultResult(res);
       setSuccess(true);
       setShowModal(false);
     } catch (err: any) {
@@ -140,16 +142,30 @@ export default function LawyerProfilePage() {
       </div>
 
       {success && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center justify-between">
+        <div className={`p-4 rounded-xl text-xs flex items-center justify-between border ${
+          consultResult?.is_simulated
+            ? 'bg-amber-50 border-amber-200 text-amber-900'
+            : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+        }`}>
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Consultation request submitted! The advocate has been notified under confidential privilege.</span>
+            {consultResult?.is_simulated ? (
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            )}
+            <span>
+              {consultResult?.is_simulated
+                ? 'Demo simulation recorded. This was a synthetic demonstration profile — no real advocate was contacted, and no legal consultation was booked.'
+                : 'Consultation request submitted! The advocate has been notified under confidential privilege.'}
+            </span>
           </div>
-          <Link to="/consultations">
-            <Button variant="primary" size="sm" className="bg-[#059669] text-white text-xs">
-              View Consultations
-            </Button>
-          </Link>
+          {!consultResult?.is_simulated && (
+            <Link to="/consultations">
+              <Button variant="primary" size="sm" className="bg-[#059669] text-white text-xs">
+                View Consultations
+              </Button>
+            </Link>
+          )}
         </div>
       )}
 
@@ -166,9 +182,19 @@ export default function LawyerProfilePage() {
                   <h1 className="font-heading text-2xl sm:text-3xl font-bold text-[#1C1917]">
                     {lawyer.name || 'Advocate High Court [DEMO]'}
                   </h1>
-                  <Badge variant="success" className="flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Verified Bar Member
-                  </Badge>
+                  {lawyer.is_demo || lawyer.name?.includes('[DEMO]') ? (
+                    <Badge variant="outline" className="flex items-center gap-1 bg-amber-50 text-amber-800 border-amber-300 font-semibold">
+                      Simulated Demo Profile
+                    </Badge>
+                  ) : lawyer.verified ? (
+                    <Badge variant="success" className="flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5" /> Verified Bar Member
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="flex items-center gap-1 text-stone-600">
+                      Pending Verification
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-sm text-[#57534E] flex items-center gap-1.5 mt-1">
                   <MapPin className="w-4 h-4 text-[#A8A29E]" /> {lawyer.city}, {lawyer.province} • High Court Bar Council

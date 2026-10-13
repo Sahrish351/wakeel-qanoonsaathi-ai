@@ -139,9 +139,19 @@ export default function LawyerDirectoryPublicPage() {
                     <div className="w-12 h-12 rounded-full bg-purple-100 text-[var(--color-accent)] flex items-center justify-center font-bold font-heading text-lg">
                       {lawyer.name ? lawyer.name[0] : 'A'}
                     </div>
-                    <Badge variant="success" className="text-[10px]">
-                      Verified Bar Advocate
-                    </Badge>
+                    {lawyer.is_demo ? (
+                      <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-800 border-amber-300 font-semibold">
+                        Simulated Demo Profile
+                      </Badge>
+                    ) : lawyer.verified ? (
+                      <Badge variant="success" className="text-[10px]">
+                        Verified Bar Advocate
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-stone-600">
+                        Pending Verification
+                      </Badge>
+                    )}
                   </div>
 
                   <div>
@@ -178,8 +188,8 @@ export default function LawyerDirectoryPublicPage() {
                   </div>
 
                   <Link to="/register">
-                    <Button variant="primary" size="sm" className="w-full bg-[var(--color-accent)] text-white text-xs">
-                      Consult Advocate <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                    <Button variant={lawyer.is_demo ? "outline" : "primary"} size="sm" className={`w-full text-xs ${!lawyer.is_demo ? 'bg-[var(--color-accent)] text-white' : ''}`}>
+                      {lawyer.is_demo ? "Simulate Consultation" : "Consult Advocate"} <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                     </Button>
                   </Link>
                 </div>

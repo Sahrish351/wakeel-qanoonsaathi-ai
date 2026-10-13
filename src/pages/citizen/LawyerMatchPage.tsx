@@ -12,7 +12,8 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
-  Calendar
+  Calendar,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
@@ -110,6 +111,7 @@ export default function LawyerMatchPage() {
   const [selectedProvince, setSelectedProvince] = useState('All');
   const [selectedLawyer, setSelectedLawyer] = useState<DemoLawyer | null>(null);
   const [consultSuccess, setConsultSuccess] = useState(false);
+  const [consultResponse, setConsultResponse] = useState<any>(null);
   const [caseSummary, setCaseSummary] = useState('User inquiry regarding legal guidance.');
 
   // Load verified lawyers from Supabase on mount & province change
@@ -141,19 +143,22 @@ export default function LawyerMatchPage() {
     if (!selectedLawyer) return;
 
     try {
-      await createConsultationRequest({
+      const res = await createConsultationRequest({
         lawyerId: selectedLawyer.id,
         notes: caseSummary,
       });
-    } catch (consultErr) {
-      console.warn('[LawyerMatchPage] Consultation DB persist notice:', consultErr);
+      setConsultResponse(res);
+      setConsultSuccess(true);
+    } catch (consultErr: any) {
+      alert('Consultation request notice: ' + consultErr.message);
+      return;
     }
 
-    setConsultSuccess(true);
     setTimeout(() => {
       setConsultSuccess(false);
+      setConsultResponse(null);
       setSelectedLawyer(null);
-    }, 2500);
+    }, 3500);
   };
 
   return (
@@ -215,7 +220,13 @@ export default function LawyerMatchPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-heading text-xl font-bold text-[#1C1917]">{lawyer.name}</h3>
-                    <CheckCircle2 className="w-4 h-4 text-[#059669]" />
+                    {lawyer.name.includes('[DEMO]') || (lawyer as any).is_demo ? (
+                      <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-800 border-amber-200 font-medium">
+                        Demo Profile
+                      </Badge>
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4 text-[#059669]" />
+                    )}
                   </div>
                   <p className="text-xs text-[#7C3AED] font-semibold mt-0.5">{lawyer.specialization}</p>
                 </div>
@@ -284,18 +295,46 @@ export default function LawyerMatchPage() {
           <div className="space-y-4 text-xs">
             {consultSuccess ? (
               <div className="py-8 text-center space-y-3">
-                <CheckCircle2 className="w-12 h-12 text-[#059669] mx-auto animate-bounce" />
-                <h4 className="font-heading text-xl font-bold text-[#1C1917]">Consultation Brief Dispatched</h4>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+                  consultResponse?.is_simulated ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-[#059669]'
+                }`}>
+                  {consultResponse?.is_simulated ? (
+                    <AlertCircle className="w-6 h-6 text-amber-600" />
+                  ) : (
+                    <CheckCircle2 className="w-6 h-6 text-[#059669]" />
+                  )}
+                </div>
+                <h4 className="font-heading text-xl font-bold text-[#1C1917]">
+                  {consultResponse?.is_simulated
+                    ? 'Demo Simulation Recorded'
+                    : 'Consultation Brief Dispatched'}
+                </h4>
                 <p className="text-xs text-[#57534E]">
-                  Your case summary has been encrypted and sent to {selectedLawyer.name}. They will review and contact you through secure consultation channels.
+                  {consultResponse?.is_simulated
+                    ? 'This was a test simulation with a synthetic demonstration profile. No real advocate was contacted, no legal booking was created, and no consultation was scheduled.'
+                    : `Your case summary has been encrypted and forwarded to counsel.`}
                 </p>
               </div>
             ) : (
               <>
-                <div className="p-3 rounded-xl bg-[#EDE9FE] border border-[#EDE9FE] text-[#1C1917]">
-                  <p className="font-semibold text-[#7C3AED]">AI Case Brief Preparation</p>
+                <div className={`p-3 rounded-xl border text-[#1C1917] ${
+                  selectedLawyer.name.includes('[DEMO]') || (selectedLawyer as any).is_demo
+                    ? 'bg-amber-50 border-amber-200'
+                    : 'bg-[#EDE9FE] border-[#EDE9FE]'
+                }`}>
+                  <p className={`font-semibold ${
+                    selectedLawyer.name.includes('[DEMO]') || (selectedLawyer as any).is_demo
+                      ? 'text-amber-800'
+                      : 'text-[#7C3AED]'
+                  }`}>
+                    {selectedLawyer.name.includes('[DEMO]') || (selectedLawyer as any).is_demo
+                      ? 'Simulated Demo Consultation Workflow'
+                      : 'AI Case Brief Preparation'}
+                  </p>
                   <p className="mt-0.5 text-[#57534E]">
-                    Wakeel generates a concise, standardized legal brief including your case timeline and evidence hashes so the advocate can evaluate exposure immediately.
+                    {selectedLawyer.name.includes('[DEMO]') || (selectedLawyer as any).is_demo
+                      ? 'Notice: This is a synthetic practitioner created for hackathon demonstration. Submitting this form tests the encrypted client-to-counsel dossier workflow without booking a real advocate.'
+                      : 'Wakeel generates a concise, standardized legal brief including your case timeline and evidence hashes so the advocate can evaluate exposure immediately.'}
                   </p>
                 </div>
 

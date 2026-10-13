@@ -58,7 +58,7 @@ export default function AdminLawyersPage() {
   const filtered = lawyers.filter((l) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    const name = l.profiles?.full_name?.toLowerCase() || '';
+    const name = (l.name || l.profiles?.full_name || '').toLowerCase();
     const city = l.city?.toLowerCase() || '';
     const prov = l.province?.toLowerCase() || '';
     return name.includes(q) || city.includes(q) || prov.includes(q);
@@ -142,7 +142,7 @@ export default function AdminLawyersPage() {
                 filtered.map((lawyer) => (
                   <tr key={lawyer.id} className="hover:bg-stone-50/80 transition-colors">
                     <td className="p-4 max-w-xs">
-                      <div className="font-bold text-stone-900">{lawyer.profiles?.full_name || 'Advocate'}</div>
+                      <div className="font-bold text-stone-900">{lawyer.name || lawyer.profiles?.full_name || 'Advocate'}</div>
                       <div className="text-[11px] text-stone-500 line-clamp-1 mt-0.5">{lawyer.bio}</div>
                     </td>
                     <td className="p-4 font-medium text-stone-700">
@@ -157,24 +157,34 @@ export default function AdminLawyersPage() {
                       </Badge>
                     </td>
                     <td className="p-4">
-                      <Badge variant={lawyer.verified ? 'success' : 'caution'}>
-                        {lawyer.verified ? 'VERIFIED' : 'UNVERIFIED'}
-                      </Badge>
+                      {lawyer.is_demo ? (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-300 font-semibold text-[10px]">
+                          DEMO / SYNTHETIC
+                        </Badge>
+                      ) : (
+                        <Badge variant={lawyer.verified ? 'success' : 'caution'}>
+                          {lawyer.verified ? 'VERIFIED' : 'UNVERIFIED'}
+                        </Badge>
+                      )}
                     </td>
                     <td className="p-4 text-right">
-                      <Button
-                        variant={lawyer.verified ? 'outline' : 'primary'}
-                        size="sm"
-                        disabled={updatingId === lawyer.id}
-                        onClick={() => handleToggleVerification(lawyer.id, lawyer.verified)}
-                        className={`text-xs ${
-                          lawyer.verified
-                            ? 'text-amber-700 border-amber-200 hover:bg-amber-50'
-                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                        }`}
-                      >
-                        {lawyer.verified ? 'Unverify' : 'Approve & Verify'}
-                      </Button>
+                      {lawyer.is_demo ? (
+                        <span className="text-[11px] text-stone-400 italic">Synthetic Demo</span>
+                      ) : (
+                        <Button
+                          variant={lawyer.verified ? 'outline' : 'primary'}
+                          size="sm"
+                          disabled={updatingId === lawyer.id}
+                          onClick={() => handleToggleVerification(lawyer.id, lawyer.verified)}
+                          className={`text-xs ${
+                            lawyer.verified
+                              ? 'text-amber-700 border-amber-200 hover:bg-amber-50'
+                              : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          }`}
+                        >
+                          {lawyer.verified ? 'Unverify' : 'Approve & Verify'}
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))

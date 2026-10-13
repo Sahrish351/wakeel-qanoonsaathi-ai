@@ -1,10 +1,60 @@
 -- =============================================================================
 -- Seed Data: seed/sources.sql
 -- Description: Verified official Pakistani emergency, statutory, and legal
---              assistance resources. All entries are confirmed live services
---              with active status and verification timestamps.
+--              assistance resources.
+--              Audit Standard: Fixed audit timestamp (2025-01-15 00:00:00+00).
+--              Transitional Status Flagged: FIA Cybercrime & NCCIA marked 'under_review'
+--              reflecting federal administrative jurisdiction transition.
 -- =============================================================================
 
+BEGIN;
+
+-- ---------------------------------------------------------------------------
+-- 0. Concurrency Control: Acquire table-level lock to prevent race conditions
+-- ---------------------------------------------------------------------------
+LOCK TABLE public.sources IN SHARE ROW EXCLUSIVE MODE;
+
+-- ---------------------------------------------------------------------------
+-- 1. Helper Function: Abort transaction immediately on conflict violation
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.abort_seed_conflict(p_msg TEXT)
+RETURNS TEXT LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'SEED CONFLICT ABORT: %', p_msg;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 2. Pre-Check Collision Guard: Abort if any reserved ID belongs to non-matching source
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.sources s
+    WHERE s.id IN (
+      '00000000-0000-0000-0001-000000000001',
+      '00000000-0000-0000-0001-000000000002',
+      '00000000-0000-0000-0001-000000000003',
+      '00000000-0000-0000-0001-000000000004',
+      '00000000-0000-0000-0001-000000000005',
+      '00000000-0000-0000-0001-000000000006'
+    )
+    AND NOT (
+      (s.id = '00000000-0000-0000-0001-000000000001' AND s.url = 'https://punjabpolice.gov.pk' AND s.authority = 'Punjab Police, Government of the Punjab') OR
+      (s.id = '00000000-0000-0000-0001-000000000002' AND s.url = 'https://rescue.gov.pk' AND s.authority = 'Punjab Emergency Service Department, Government of the Punjab') OR
+      (s.id = '00000000-0000-0000-0001-000000000003' AND s.url = 'https://mohr.gov.pk' AND s.authority = 'Ministry of Human Rights (MoHR), Government of Pakistan') OR
+      (s.id = '00000000-0000-0000-0001-000000000004' AND s.url = 'https://nccia.gov.pk' AND s.authority = 'National Cyber Crime Investigation Agency (NCCIA) / Ministry of Interior') OR
+      (s.id = '00000000-0000-0000-0001-000000000005' AND s.url = 'https://complaint.fia.gov.pk' AND s.authority = 'Federal Investigation Agency (FIA), Government of Pakistan') OR
+      (s.id = '00000000-0000-0000-0001-000000000006' AND s.url = 'https://hrcp-web.org' AND s.authority = 'Human Rights Commission of Pakistan (HRCP)')
+    )
+  ) THEN
+    RAISE EXCEPTION 'SEED ABORTED: One or more reserved source IDs collide with an unrelated source record in public.sources!';
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- 3. Upsert Official Pakistani Legal Assistance & Statutory Resources
+-- ---------------------------------------------------------------------------
 INSERT INTO public.sources (
   id,
   title,
@@ -26,9 +76,9 @@ VALUES
     'Punjab',
     'police_criminal',
     'https://punjabpolice.gov.pk',
-    'Official round-the-clock emergency telephone hotline (15) for reporting ongoing crimes, immediate police dispatch, distress response, and First Information Report (FIR) initiation assistance across all 36 districts of Punjab. Managed via modern Integrated Command, Control and Communication (IC3) centres.',
+    'Official emergency telephone hotline (15) for reporting ongoing crimes, immediate police dispatch, distress response, and First Information Report (FIR) initiation assistance across all 36 districts of Punjab. Managed via Integrated Command, Control and Communication (IC3) centres.',
     '2001-01-01',
-    NOW(),
+    '2025-01-15 00:00:00+00',
     'verified',
     TRUE
   ),
@@ -39,9 +89,9 @@ VALUES
     'Punjab',
     'other',
     'https://rescue.gov.pk',
-    'Toll-free 24/7 dedicated emergency service established under the Punjab Emergency Service Act 2006. Provides professional pre-hospital emergency ambulance care, rescue, fire fighting, water rescue, and disaster mitigation across Punjab. Accessible by dialing 1122 toll-free.',
+    'Toll-free 24/7 emergency service established under the Punjab Emergency Service Act 2006. Provides pre-hospital emergency ambulance care, rescue, firefighting, and disaster mitigation across Punjab. Accessible by dialing 1122 nationwide.',
     '2006-06-19',
-    NOW(),
+    '2025-01-15 00:00:00+00',
     'verified',
     TRUE
   ),
@@ -52,9 +102,9 @@ VALUES
     'Federal',
     'human_rights',
     'https://mohr.gov.pk',
-    'National toll-free legal helpline (1099) established by the Federal Ministry of Human Rights. Offers free legal counseling, grievance recording, referral services, and rapid legal aid intervention for victims of human rights violations, domestic violence, child protection issues, and fundamental rights infringements.',
+    'National toll-free legal helpline (1099) established by the Federal Ministry of Human Rights. Offers free legal counseling, grievance recording, referral services, and rapid intervention for victims of human rights violations, domestic violence, and fundamental rights infringements.',
     '2016-04-01',
-    NOW(),
+    '2025-01-15 00:00:00+00',
     'verified',
     TRUE
   ),
@@ -65,10 +115,10 @@ VALUES
     'Federal',
     'cybercrime',
     'https://nccia.gov.pk',
-    'Central federal emergency helpline (1799) dedicated to reporting cyber harassment, online blackmail, extortion, unauthorized electronic access, banking fraud, and digital impersonation under the Prevention of Electronic Crimes Act (PECA) 2016.',
+    'Federal specialized agency notified in 2024 to investigate electronic offenses under the Prevention of Electronic Crimes Act (PECA) 2016. Toll-free helpline 1799 and complaint portal complaint.nccia.gov.pk. [STATUS NOTE: Active institutional transition from FIA Cybercrime Wing is in progress under Ministry of Interior directives].',
     '2024-05-01',
-    NOW(),
-    'verified',
+    '2025-01-15 00:00:00+00',
+    'under_review',
     TRUE
   ),
   (
@@ -78,10 +128,10 @@ VALUES
     'Federal',
     'cybercrime',
     'https://complaint.fia.gov.pk',
-    'Specialized statutory law enforcement body empowered under the Prevention of Electronic Crimes Act (PECA) 2016 and FIA Act 1974 to investigate, seize evidence, arrest, and prosecute electronic offenses, financial fraud, cross-border digital crime, and non-consensual image distribution. Citizens can file online complaints or visit regional reporting centers.',
+    'Statutory law enforcement division under the FIA Act 1974 historically handling PECA 2016 complaints. [STATUS NOTE: Jurisdiction over online harassment and electronic fraud is in active administrative transition to the newly constituted NCCIA; citizens can monitor regional reporting centers for current case intake protocols].',
     '2016-08-11',
-    NOW(),
-    'verified',
+    '2025-01-15 00:00:00+00',
+    'under_review',
     TRUE
   ),
   (
@@ -91,14 +141,18 @@ VALUES
     'Federal',
     'human_rights',
     'https://hrcp-web.org',
-    'Independent non-governmental human rights organization founded in 1987. Conducts on-ground fact-finding missions, legal defense coordination, pro bono legal counsel referrals, and systemic public interest litigation to uphold constitutional civil liberties, minority protections, and democratic safeguards throughout Pakistan.',
+    'Independent non-governmental human rights organization founded in 1987. Conducts on-ground fact-finding missions, legal defense coordination, pro bono legal counsel referrals, and systemic public interest advocacy to uphold constitutional civil liberties and democratic safeguards.',
     '1987-03-01',
-    NOW(),
+    '2025-01-15 00:00:00+00',
     'verified',
     TRUE
   )
 ON CONFLICT (id) DO UPDATE SET
-  title               = EXCLUDED.title,
+  title = CASE
+    WHEN public.sources.url = EXCLUDED.url AND public.sources.authority = EXCLUDED.authority
+    THEN EXCLUDED.title
+    ELSE public.abort_seed_conflict('public.sources id ' || EXCLUDED.id::text || ' collides with non-matching authority/url')
+  END,
   authority           = EXCLUDED.authority,
   jurisdiction        = EXCLUDED.jurisdiction,
   category            = EXCLUDED.category,
@@ -107,4 +161,33 @@ ON CONFLICT (id) DO UPDATE SET
   effective_date      = EXCLUDED.effective_date,
   last_reviewed_at    = EXCLUDED.last_reviewed_at,
   verification_status = EXCLUDED.verification_status,
-  active              = EXCLUDED.active;
+  active              = EXCLUDED.active
+WHERE public.sources.url = EXCLUDED.url AND public.sources.authority = EXCLUDED.authority;
+
+-- ---------------------------------------------------------------------------
+-- 4. Post-Write Assertion Check: Verify exactly 6 sources exist
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_count INT;
+BEGIN
+  SELECT count(*) INTO v_count FROM public.sources
+  WHERE id IN (
+    '00000000-0000-0000-0001-000000000001',
+    '00000000-0000-0000-0001-000000000002',
+    '00000000-0000-0000-0001-000000000003',
+    '00000000-0000-0000-0001-000000000004',
+    '00000000-0000-0000-0001-000000000005',
+    '00000000-0000-0000-0001-000000000006'
+  );
+  IF v_count <> 6 THEN
+    RAISE EXCEPTION 'SEED INTEGRITY FAILURE: Expected 6 seeded sources, found %', v_count;
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- 5. Cleanup: Drop temporary helper function within the transaction
+-- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.abort_seed_conflict(TEXT);
+
+COMMIT;

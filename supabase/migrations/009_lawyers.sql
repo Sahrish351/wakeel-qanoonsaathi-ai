@@ -22,13 +22,15 @@ $$;
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.lawyers (
   id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  profile_id          UUID        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE UNIQUE,
+  profile_id          UUID        REFERENCES public.profiles(id) ON DELETE CASCADE UNIQUE,
+  name                TEXT,
   bio                 TEXT,
   province            TEXT        NOT NULL,
   city                TEXT        NOT NULL,
   languages           TEXT[]      DEFAULT '{en}',
   consultation_modes  TEXT[]      DEFAULT '{in_person}',
   verified            BOOLEAN     NOT NULL DEFAULT FALSE,
+  is_demo             BOOLEAN     NOT NULL DEFAULT FALSE,
   availability_status TEXT        DEFAULT 'available' CHECK (availability_status IN ('available','busy','unavailable')),
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -91,7 +93,7 @@ ALTER TABLE public.lawyers ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "lawyers_select_public_verified" ON public.lawyers;
 CREATE POLICY "lawyers_select_public_verified"
   ON public.lawyers FOR SELECT
-  USING (verified = TRUE);
+  USING (verified = TRUE OR is_demo = TRUE);
 
 DROP POLICY IF EXISTS "lawyers_select_own" ON public.lawyers;
 CREATE POLICY "lawyers_select_own"
@@ -152,7 +154,7 @@ CREATE POLICY "lawyer_specializations_select"
     EXISTS (
       SELECT 1 FROM public.lawyers l
       WHERE l.id = lawyer_id
-        AND (l.verified = TRUE OR l.profile_id = auth.uid())
+        AND (l.verified = TRUE OR l.is_demo = TRUE OR l.profile_id = auth.uid())
     )
     OR public.is_admin()
   );
@@ -213,7 +215,7 @@ CREATE POLICY "lawyer_availability_select"
     EXISTS (
       SELECT 1 FROM public.lawyers l
       WHERE l.id = lawyer_id
-        AND (l.verified = TRUE OR l.profile_id = auth.uid())
+        AND (l.verified = TRUE OR l.is_demo = TRUE OR l.profile_id = auth.uid())
     )
     OR public.is_admin()
   );

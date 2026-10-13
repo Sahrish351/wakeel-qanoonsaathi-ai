@@ -26,12 +26,14 @@ serve(async (req) => {
       .from('lawyers')
       .select(`
         id,
+        name,
         bio,
         province,
         city,
         languages,
         consultation_modes,
         verified,
+        is_demo,
         availability_status,
         profiles:profile_id (
           full_name,
@@ -41,7 +43,7 @@ serve(async (req) => {
           category
         )
       `)
-      .eq('verified', true);
+      .or('verified.eq.true,is_demo.eq.true');
 
     if (province && province !== 'All') {
       query = query.eq('province', province);
